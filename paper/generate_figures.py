@@ -3,22 +3,32 @@
 generate_figures.py -- regenerate Fig. 1 and Fig. 2 of the ICASSP paper as
 vector PDFs, ready to \\includegraphics in LaTeX.
 
-Requires cfa_tool.py (the reference implementation of the synthesis:
+Requires src/ekg_ilc_rt.py (the reference implementation of the synthesis:
 signal generation, phase estimator, ILC/repetitive canceller, NRLS residual)
-to be importable from the same directory.
+to be importable from this repository.
 
 Usage:
     python generate_figures.py
 Produces:
     fig1_convergence_spectrum.pdf
     fig2_timedomain.pdf
+    tab_results_generated.tex
 """
+import os
+import sys
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy import signal
-import cfa_tool as C
+
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.dirname(THIS_DIR)
+SRC_DIR = os.path.join(REPO_ROOT, "src")
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
+
+import ekg_ilc_rt as C
 
 plt.rcParams.update({
     "font.family": "serif",
@@ -45,6 +55,47 @@ def run_pipeline():
         e_final = C.rls_clean(e_ilc, r, FS, mode, True, True)
         results[mode] = (e_ilc, e_final, templ)
     return t, y, s, d, r, est, results
+
+
+def snr_db_truth(s, est, mask):
+    return 10 * np.log10(np.sum(s[mask] ** 2) / np.sum((s[mask] - est[mask]) ** 2))
+
+
+def compute_method_summary(t, y, s, r, results):
+    ss = t > t[-1] * 0.5
+    summary = []
+    summary.append(("Input (contaminated)", "--", snr_db_truth(s, y, ss)))
+
+    # Linear ANC baseline: no ILC, linear reference only (T1), causal RLS.
+    e_linear = C.rls_clean(y, r, FS, "causal", True, False)
+    summary.append(("Linear RLS ANC", "causal", snr_db_truth(s, e_linear, ss)))
+
+    summary.append(("Proposed (causal)", "0", snr_db_truth(s, results["causal"][1], ss)))
+    summary.append(("Proposed (buffered)", "~1 beat", snr_db_truth(s, results["buffered"][1], ss)))
+    summary.append(("Proposed (non-causal)", "offline", snr_db_truth(s, results["noncausal"][1], ss)))
+    return summary
+
+
+def write_summary_table_tex(summary_rows, out_path="tab_results_generated.tex"):
+    lines = [
+        r"\begin{table}[!ht]",
+        r"\centering",
+        r"\caption{Steady-state artifact SNR (semi-synthetic; generated).}",
+        r"\label{tab:results}",
+        r"\begin{tabular}{@{}lcc@{}}",
+        r"\toprule",
+        r"Method & Latency & SNR (dB) \\",
+        r"\midrule",
+    ]
+    for method, latency, snr in summary_rows:
+        lines.append("{} & {} & {:.2f} \\\\".format(method, latency, snr))
+    lines.extend([
+        r"\bottomrule",
+        r"\end{tabular}",
+        r"\end{table}",
+    ])
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
 
 
 def fig1_convergence_spectrum(t, y, s, results, fs):
@@ -124,22 +175,17 @@ def fig2_timedomain(t, y, s, d, r, est, results, fs):
     plt.close(fig)
 
 
-def print_summary_table(t, y, s, results, fs):
-    ss = t > t[-1] * 0.5
-
-    def snr(est):
-        return 10 * np.log10(np.sum(s[ss] ** 2) / np.sum((s[ss] - est[ss]) ** 2))
-
-    print(f"raw y            : {snr(y):5.2f} dB")
-    for mode in ["noncausal", "buffered", "causal"]:
-        e_ilc, e_final, _ = results[mode]
-        print(f"{mode:9s} +ILC   : {snr(e_ilc):5.2f} dB")
-        print(f"{mode:9s} +ILC+NRLS: {snr(e_final):5.2f} dB")
+def print_summary_table(summary_rows):
+    print("Method summary (steady-state SNR):")
+    for method, latency, snr in summary_rows:
+        print(f"{method:24s} | {latency:8s} | {snr:5.2f} dB")
 
 
 if __name__ == "__main__":
     t, y, s, d, r, est, results = run_pipeline()
     fig1_convergence_spectrum(t, y, s, results, FS)
     fig2_timedomain(t, y, s, d, r, est, results, FS)
-    print_summary_table(t, y, s, results, FS)
-    print("wrote fig1_convergence_spectrum.pdf and fig2_timedomain.pdf")
+    summary_rows = compute_method_summary(t, y, s, r, results)
+    write_summary_table_tex(summary_rows)
+    print_summary_table(summary_rows)
+    print("wrote fig1_convergence_spectrum.pdf, fig2_timedomain.pdf, and tab_results_generated.tex")

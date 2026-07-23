@@ -201,7 +201,14 @@ Following the semi-synthetic protocol common in EEG denoising \cite{zhang2021}, 
 We compare against (i)~a linear RLS/LMS ECG-reference canceller \cite{widrow1975,haykin2014,sayed2008}; (ii)~an EKF/state-space canceller \emph{[placeholder---to be added]} \cite{sameni2007}; and (iii)~low-channel ICA \emph{[placeholder---to be added]} \cite{jung2000,pion2019}, which is expected to degrade at $C<8$.
 
 \subsection{Results}
-Steady-state artifact SNR is 1.3~dB at input, 7.6~dB with linear RLS/LMS ANC, 8.6~dB for the proposed causal mode, 9.0~dB for buffered mode, and 10.0~dB for the non-causal ceiling; EKF and low-channel ICA baselines remain placeholders. In single-pass online operation, buffered mode converges faster and to a higher final SNR than causal mode, consistent with the expected one-beat anchoring advantage. Spectrally, the cardiac comb is strongly reduced after cleaning while the 10~Hz alpha peak is preserved within about 10\%, an implicit heartbeat-evoked-potential safeguard \cite{park2019}. Ablations show ILC contributes the bulk of the gain when well-anchored (buffered), while the NRLS residual is decisive in the causal mode (2.5$\to$8.6~dB), where the ILC cannot fully cancel the predicted-R-smeared spike; the Hammerstein term helps most when the residual is largest.
+Table~\ref{tab:results} reports steady-state artifact SNR for the main approaches, generated directly by the companion script to keep manuscript numbers synchronized with code. Fig.~\ref{fig:conv} shows single-pass online convergence for the three operating modes and the corresponding buffered-mode spectrum before and after cleaning. In single-pass online operation, buffered mode converges faster and to a higher final SNR than causal mode, consistent with the expected one-beat anchoring advantage. Spectrally, the cardiac comb is strongly reduced after cleaning while the 10~Hz alpha peak is preserved within about 10\%, an implicit heartbeat-evoked-potential safeguard \cite{park2019}. Ablations show ILC contributes the bulk of the gain when well-anchored (buffered), while the NRLS residual is decisive in the causal mode, where the ILC cannot fully cancel the predicted-R-smeared spike; the Hammerstein term helps most when the residual is largest.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\linewidth]{fig1_convergence_spectrum.pdf}
+\caption{(a) Online SNR convergence for the three modes (single causal pass). (b) Power spectrum before/after cleaning (buffered); shaded band marks the preserved 10~Hz alpha rhythm.}
+\label{fig:conv}
+\end{figure}
 
 Fig.~\ref{fig:time} shows the time-domain cancellation over three consecutive beats in the converged regime. The synthetic reference $r(t)$ exhibits full PQRST morphology---P wave, QRS complex, and T wave---rather than a simplified sinusoidal surrogate, so the canceller must contend with a sharp, high-amplitude R deflection and a low-amplitude pre-R P wave. After processing, the cleaned EEG closely tracks the ground-truth neural signal $s(t)$: the R spike is suppressed by roughly an order of magnitude, the QRST tail is removed, and the residual P wave is attenuated, while the ongoing alpha oscillation is retained. This confirms that the phase-anchored template and residual canceller act on realistic cardiac morphology, not a reduced model.
 
@@ -211,6 +218,8 @@ Fig.~\ref{fig:time} shows the time-domain cancellation over three consecutive be
 \caption{Time-domain cancellation over three beats (converged, buffered mode). (a) Synthetic ECG reference $r(t)$ with full PQRST morphology; vertical lines mark detected R fiducials $t_k$. (b) Contaminated EEG $y(t)$, cleaned output, and ground-truth neural signal $s(t)$ over the same window.}
 \label{fig:time}
 \end{figure}
+
+\input{tab_results_generated.tex}
 
 % ===========================================================================
 \section{Conclusion}
