@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-cfa_tool.py  --  Cardiac-Field-Artifact cleanup workbench
+ekg_ilc_rt.py  --  Cardiac-Field-Artifact cleanup workbench
 =========================================================
 A single controllable tool wrapping everything we prototyped:
 
@@ -20,19 +20,34 @@ Per-block toggles (clean, all default ON; use --no-XXX to disable):
   --rls             linear residual canceller
 
 Examples:
-  python cfa_tool.py gen-ecg --duration 20 --out ecg.png
-  python cfa_tool.py gen-eeg --duration 30 --out eeg.png
-  python cfa_tool.py clean --mode buffered --out clean.png
-  python cfa_tool.py clean --mode causal --no-rls
-  python cfa_tool.py clean --mode buffered --no-ilc --no-nonlinear
-  python cfa_tool.py clean --mode buffered --no-override      # watch anomalies corrupt the template
+    python ekg_ilc_rt.py gen-ecg --duration 20 --out ecg.png
+    python ekg_ilc_rt.py gen-eeg --duration 30 --out eeg.png
+    python ekg_ilc_rt.py clean --mode buffered --out clean.png
+    python ekg_ilc_rt.py clean --mode causal --no-rls
+    python ekg_ilc_rt.py clean --mode buffered --no-ilc --no-nonlinear
+    python ekg_ilc_rt.py clean --mode buffered --no-override      # watch anomalies corrupt the template
+    python ekg_ilc_rt.py gen-eeg --show                          # interactive window (zoom/pan)
 """
 import argparse
 import numpy as np
 from scipy import signal
 import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+
+if not hasattr(argparse, "BooleanOptionalAction"):
+    class BooleanOptionalAction(argparse.Action):
+        def __init__(self, option_strings, dest, **kwargs):
+            opts = []
+            for opt in option_strings:
+                opts.append(opt)
+                if opt.startswith("--"):
+                    opts.append("--no-" + opt[2:])
+            kwargs.setdefault("nargs", 0)
+            super().__init__(option_strings=opts, dest=dest, **kwargs)
+
+        def __call__(self, parser, namespace, values, option_string=None):
+            setattr(namespace, self.dest, not option_string.startswith("--no-"))
+
+    argparse.BooleanOptionalAction = BooleanOptionalAction
 
 # ============================================================================
 # 1. SIGNAL SYNTHESIS
@@ -221,25 +236,35 @@ def rls_clean(e1, r, fs, mode, use_rls, use_nonlinear, M=8, lam=0.9998, ridge=0.
 def snr_db(s, est, mask):
     return 10 * np.log10(np.sum(s[mask] ** 2) / np.sum((s[mask] - est[mask]) ** 2))
 
-def plot_ecg(t, r, beat_t, out):
+def plot_ecg(t, r, beat_t, out=None, show=False):
     fig, ax = plt.subplots(figsize=(12, 3.5))
     ax.plot(t, r, lw=0.6, color="0.3")
     for bt in beat_t:
         ax.axvline(bt, color="C2", lw=0.6, alpha=0.5)
     ax.set_xlim(0, min(t[-1], 20)); ax.set_title("Synthetic ECG reference (green = R peaks)")
     ax.set_xlabel("time (s)"); ax.grid(alpha=0.3)
-    plt.tight_layout(); plt.savefig(out, dpi=110); plt.close()
+    plt.tight_layout()
+    if out:
+        plt.savefig(out, dpi=110)
+    if show:
+        plt.show()
+    plt.close()
 
-def plot_eeg(t, y, s, cfa, out):
+def plot_eeg(t, y, s, cfa, out=None, show=False):
     fig, ax = plt.subplots(3, 1, figsize=(12, 7), sharex=True)
     ax[0].plot(t, cfa, lw=0.6, color="C3"); ax[0].set_title("Cardiac field artifact (nonlinear + volume conduction)")
     ax[1].plot(t, s, lw=0.6, color="C0"); ax[1].set_title("True neural signal (pink + alpha)")
     ax[2].plot(t, y, lw=0.6, color="0.3"); ax[2].set_title("Contaminated EEG = neural + CFA + noise")
     ax[2].set_xlabel("time (s)"); ax[2].set_xlim(0, min(t[-1], 20))
     for a in ax: a.grid(alpha=0.3)
-    plt.tight_layout(); plt.savefig(out, dpi=110); plt.close()
+    plt.tight_layout()
+    if out:
+        plt.savefig(out, dpi=110)
+    if show:
+        plt.show()
+    plt.close()
 
-def plot_clean(t, y, s, cfa, clean_ilc, clean, template, fs, args, out):
+def plot_clean(t, y, s, cfa, clean_ilc, clean, template, fs, args, out=None, show=False):
     N = len(t); ra, Lw = _template_dims(fs); tsr = (np.arange(Lw) - ra) / fs
     ss = t > (t[-1] * 0.5)
     def wsnr(est, win=int(8 * fs)):
@@ -267,13 +292,18 @@ def plot_clean(t, y, s, cfa, clean_ilc, clean, template, fs, args, out):
                  % (args.mode, args.phase_tracker, args.override, args.ilc, args.nonlinear, args.rls),
                  fontsize=11)
     for a in ax.flat: a.grid(alpha=0.3)
-    plt.tight_layout(); plt.savefig(out, dpi=110); plt.close()
+    plt.tight_layout()
+    if out:
+        plt.savefig(out, dpi=110)
+    if show:
+        plt.show()
+    plt.close()
 
 # ============================================================================
 # 5. CLI
 # ============================================================================
 def main():
-    p = argparse.ArgumentParser(prog="cfa_tool", description=__doc__,
+    p = argparse.ArgumentParser(prog="ekg_ilc_rt.py", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
     def add_common(sp):
@@ -282,6 +312,8 @@ def main():
         sp.add_argument("--seed", type=int, default=11)
         sp.add_argument("--anomalies", action=argparse.BooleanOptionalAction, default=True)
         sp.add_argument("--out", default=None, help="output PNG path")
+        sp.add_argument("--show", action=argparse.BooleanOptionalAction, default=False,
+                        help="show interactive plot window (zoom/pan)")
     sp = sub.add_parser("gen-ecg", help="generate & plot synthetic ECG"); add_common(sp)
     sp = sub.add_parser("gen-eeg", help="generate & plot synthetic EEG + CFA"); add_common(sp)
     sp.add_argument("--drift", type=float, default=0.20); sp.add_argument("--artifact-gain", type=float, default=3.0)
@@ -295,11 +327,21 @@ def main():
     sp.add_argument("--drift", type=float, default=0.20); sp.add_argument("--artifact-gain", type=float, default=3.0)
     args = p.parse_args()
 
+    global plt
+    if args.show:
+        import matplotlib.pyplot as plt
+    else:
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
     if args.cmd == "gen-ecg":
         t, r, beat_t, btype = gen_ecg(args.fs, args.duration, args.seed, args.anomalies)
         print("ECG: %.0f s, %d beats (%d premature, %d after-drop)" %
               (args.duration, len(beat_t), btype.count("premature"), btype.count("missed")))
-        out = args.out or "ecg.png"; plot_ecg(t, r, beat_t, out); print("wrote", out)
+        out = args.out if args.out else (None if args.show else "ecg.png")
+        plot_ecg(t, r, beat_t, out=out, show=args.show)
+        if out:
+            print("wrote", out)
 
     elif args.cmd == "gen-eeg":
         t, y, s, cfa, r, beat_t, btype = gen_eeg(args.fs, args.duration, args.seed, args.anomalies,
@@ -307,7 +349,10 @@ def main():
         ss = t > (t[-1] * 0.5)
         print("EEG: input artifact SNR (s vs y) = %.2f dB over %d beats" %
               (snr_db(s, y, ss), len(beat_t)))
-        out = args.out or "eeg.png"; plot_eeg(t, y, s, cfa, out); print("wrote", out)
+        out = args.out if args.out else (None if args.show else "eeg.png")
+        plot_eeg(t, y, s, cfa, out=out, show=args.show)
+        if out:
+            print("wrote", out)
 
     elif args.cmd == "clean":
         t, y, s, cfa, r, beat_t, btype = gen_eeg(args.fs, args.duration, args.seed, args.anomalies,
@@ -324,9 +369,11 @@ def main():
         print("  raw y            : %6.2f dB" % snr_db(s, y, ss))
         print("  after ILC        : %6.2f dB" % snr_db(s, clean_ilc, ss))
         print("  after ILC + RLS  : %6.2f dB" % snr_db(s, clean, ss))
-        if args.out:
-            plot_clean(t, y, s, cfa, clean_ilc, clean, template, args.fs, args, args.out)
-            print("wrote", args.out)
+        out = args.out if args.out else (None if args.show else "clean.png")
+        if out or args.show:
+            plot_clean(t, y, s, cfa, clean_ilc, clean, template, args.fs, args, out=out, show=args.show)
+        if out:
+            print("wrote", out)
 
 if __name__ == "__main__":
     main()
