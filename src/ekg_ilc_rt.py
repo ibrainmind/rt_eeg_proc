@@ -107,12 +107,22 @@ def gen_eeg(fs, dur, seed, anomalies=True, drift=0.20, artifact_gain=3.0):
 # ============================================================================
 # 2. PHASE ESTIMATOR  (streaming: gate + optional PLL + optional supervisor)
 # ============================================================================
-def phase_estimator(r, fs, use_pll=True, use_override=True, rr0=0.85, debug=False, thr_hi=0.60):
+def phase_estimator(
+    r,
+    fs,
+    use_pll=True,
+    use_override=True,
+    rr0=0.85,
+    debug=False,
+    thr_hi=0.60,
+    emph_delta=3.2e-5,
+):
     N = len(r)
     sos = signal.butter(2, [8, 20], btype="band", fs=fs, output="sos")
     emph = np.abs(signal.sosfilt(sos, r))
     DEC = np.exp(-1.0 / (0.35 * fs)); AB = 1.0 / (1.5 * fs)
     THR_HI, THR_LO = float(thr_hi), 0.15; REFR = int(0.25 * fs); WARM = int(2.0 * fs)
+    EMPH_DELTA = float(emph_delta)
     peak = 1e-6; base = 0.0; armed = False; refr = 0
     run_max = -1e9; rmi = 0; phi_pk = 0.0
     phi = 0.0; RR_hat = rr0; omega = 1.0 / (RR_hat * fs); last = None
@@ -141,7 +151,7 @@ def phase_estimator(r, fs, use_pll=True, use_override=True, rr0=0.85, debug=Fals
             base_log[n] = base
             gate_log[n] = gate
         if refr > 0: refr -= 1
-        thresh_met = gate > THR_HI and refr == 0 and n > WARM
+        thresh_met = (gate > THR_HI) and (e > (base + EMPH_DELTA)) and (refr == 0) and (n > WARM)
         if debug:
             thresh_met_log[n] = int(thresh_met)
         if not armed and thresh_met:
@@ -187,6 +197,7 @@ def phase_estimator(r, fs, use_pll=True, use_override=True, rr0=0.85, debug=Fals
             "params": {
                 "THR_HI": THR_HI,
                 "THR_LO": THR_LO,
+                "EMPH_DELTA": EMPH_DELTA,
                 "AB": AB,
                 "DEC": DEC,
                 "REFR": REFR,
