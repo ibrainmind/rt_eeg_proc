@@ -107,32 +107,52 @@ def gen_eeg(fs, dur, seed, anomalies=True, drift=0.20, artifact_gain=3.0):
 # ============================================================================
 # 2. PHASE ESTIMATOR  (streaming: gate + optional PLL + optional supervisor)
 # ============================================================================
-def phase_estimator(r, fs, use_pll=True, use_override=True, rr0=0.85):
+def phase_estimator(r, fs, use_pll=True, use_override=True, rr0=0.85, debug=False, thr_hi=0.60):
     N = len(r)
     sos = signal.butter(2, [8, 20], btype="band", fs=fs, output="sos")
     emph = np.abs(signal.sosfilt(sos, r))
     DEC = np.exp(-1.0 / (0.35 * fs)); AB = 1.0 / (1.5 * fs)
-    THR_HI, THR_LO = 0.40, 0.15; REFR = int(0.25 * fs); WARM = int(2.0 * fs)
+    THR_HI, THR_LO = float(thr_hi), 0.15; REFR = int(0.25 * fs); WARM = int(2.0 * fs)
     peak = 1e-6; base = 0.0; armed = False; refr = 0
     run_max = -1e9; rmi = 0; phi_pk = 0.0
     phi = 0.0; RR_hat = rr0; omega = 1.0 / (RR_hat * fs); last = None
     fids = []; phi_log = np.zeros(N); rr_log = np.zeros(N)
+    if debug:
+        emph_log = np.zeros(N)
+        peak_log = np.zeros(N)
+        base_log = np.zeros(N)
+        gate_log = np.zeros(N)
+        armed_log = np.zeros(N, dtype=int)
+        thresh_met_log = np.zeros(N, dtype=int)
+        detect_log = np.zeros(N, dtype=int)
+        rr_meas_log = np.full(N, np.nan)
     wrap = lambda p: ((p + 0.5) % 1.0) - 0.5
     for n in range(N):
         e = emph[n]
+        if debug:
+            emph_log[n] = e
         peak = e if e > peak else peak * DEC
         base = base + AB * (e - base)
         gate = (e - base) / (peak - base + 1e-9)
         phi = (phi + omega) % 1.0
         phi_log[n] = phi; rr_log[n] = RR_hat
+        if debug:
+            peak_log[n] = peak
+            base_log[n] = base
+            gate_log[n] = gate
         if refr > 0: refr -= 1
-        if not armed and gate > THR_HI and refr == 0 and n > WARM:
+        thresh_met = gate > THR_HI and refr == 0 and n > WARM
+        if debug:
+            thresh_met_log[n] = int(thresh_met)
+        if not armed and thresh_met:
             armed = True; run_max = -1e9
         if armed:
             if r[n] > run_max: run_max = r[n]; rmi = n; phi_pk = phi
             if gate < THR_LO:
                 armed = False; refr = REFR; fid = rmi; rr_pre = RR_hat
                 rr_meas = RR_hat if last is None else (fid - last) / fs
+                if debug:
+                    rr_meas_log[fid] = rr_meas
                 ratio = rr_meas / RR_hat; perr = wrap(phi_pk)
                 if use_override and ratio < 0.70:
                     ty = "premature"; phi = 0.0; lg = False
@@ -148,7 +168,32 @@ def phase_estimator(r, fs, use_pll=True, use_override=True, rr0=0.85):
                         RR_hat = rr_meas if last is not None else RR_hat
                     omega = 1.0 / (RR_hat * fs)
                 fids.append((fid, ty, lg)); last = fid
-    return {"fids": fids, "phi": phi_log, "rrhat": rr_log}
+                if debug:
+                    detect_log[n] = 1
+        if debug:
+            armed_log[n] = int(armed)
+
+    out = {"fids": fids, "phi": phi_log, "rrhat": rr_log}
+    if debug:
+        out.update({
+            "emph": emph_log,
+            "peak": peak_log,
+            "base": base_log,
+            "gate": gate_log,
+            "armed": armed_log,
+            "thresh_met": thresh_met_log,
+            "detect_events": detect_log,
+            "rr_meas": rr_meas_log,
+            "params": {
+                "THR_HI": THR_HI,
+                "THR_LO": THR_LO,
+                "AB": AB,
+                "DEC": DEC,
+                "REFR": REFR,
+                "WARM": WARM,
+            },
+        })
+    return out
 
 # ============================================================================
 # 3. ILC  (three anchoring strategies) + RLS residual

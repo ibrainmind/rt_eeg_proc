@@ -51,10 +51,24 @@ Show interactive figure instead of saving:
 	--show
 ```
 
+Run PI tracker comparison on EKG (buffered vs causal real-time):
+
+```bash
+./conda-env/bin/python src/process_data.py \
+	--dataset-root datasets/ds005873 \
+	--subject sub-001 \
+	--session ses-01 \
+	--run 01 \
+	--plot-tracker \
+	--duration-sec 20 \
+	--out outputs/sub-001_run-01_tracker_compare.png
+```
+
 Notes:
 
 - `--pull/--no-pull` controls whether missing run files are fetched with `datalad get`.
 - `--start-sec` and `--duration-sec` control the plotted time window.
+- `--plot-tracker` switches to PI tracker diagnostics using ECG/EKG with time-linked axes for zooming.
 
 ## Import in other Python code
 
