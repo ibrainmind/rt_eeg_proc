@@ -27,6 +27,8 @@ Examples:
     python ekg_ilc_rt.py clean --mode buffered --no-ilc --no-nonlinear
     python ekg_ilc_rt.py clean --mode buffered --no-override      # watch anomalies corrupt the template
     python ekg_ilc_rt.py gen-eeg --show                          # interactive window (zoom/pan)
+    python ekg_ilc_rt.py passloss --duration 60 --out-prefix passloss_demo
+    python ekg_ilc_rt.py passloss --duration 60 --band-lo 8 --band-hi 20 --show
 """
 import argparse
 import numpy as np
@@ -295,9 +297,14 @@ def snr_db(s, est, mask):
 def plot_ecg(t, r, beat_t, out=None, show=False):
     fig, ax = plt.subplots(figsize=(12, 3.5))
     ax.plot(t, r, lw=0.6, color="0.3")
-    for bt in beat_t:
-        ax.axvline(bt, color="C2", lw=0.6, alpha=0.5)
-    ax.set_xlim(0, min(t[-1], 20)); ax.set_title("Synthetic ECG reference (green = R peaks)")
+    if len(beat_t) > 0:
+        bt = np.asarray(beat_t)
+        bt = bt[(bt >= t[0]) & (bt <= t[-1])]
+        ridx = np.searchsorted(t, bt)
+        ridx = np.clip(ridx, 0, len(t) - 1)
+        ax.scatter(t[ridx], r[ridx], s=18, c="C2", marker="o", alpha=0.85, label="R peaks")
+        ax.legend(loc="upper right", fontsize=8)
+    ax.set_xlim(0, min(t[-1], 20)); ax.set_title("Synthetic ECG reference (green markers = R peaks)")
     ax.set_xlabel("time (s)"); ax.grid(alpha=0.3)
     plt.tight_layout()
     if out:
@@ -355,6 +362,211 @@ def plot_clean(t, y, s, cfa, clean_ilc, clean, template, fs, args, out=None, sho
         plt.show()
     plt.close()
 
+
+def estimate_pass_loss_freq(y, r, fs, nperseg=2048):
+    """Estimate EKG->EEG transfer and pass loss in frequency domain."""
+    eps = 1e-12
+    f, Sxx = signal.welch(r, fs=fs, nperseg=min(nperseg, len(r)))
+    _, Syy = signal.welch(y, fs=fs, nperseg=min(nperseg, len(y)))
+    _, Syx = signal.csd(y, r, fs=fs, nperseg=min(nperseg, len(r)))
+    H = Syx / (Sxx + eps)
+    coh = (np.abs(Syx) ** 2) / (Sxx * Syy + eps)
+    pass_loss_db = -20.0 * np.log10(np.abs(H) + eps)
+    return f, pass_loss_db, coh, np.abs(H)
+
+
+def estimate_pass_loss_timevarying(y, r, fs, band_lo=8.0, band_hi=20.0, win_sec=8.0, hop_sec=2.0):
+    """Sliding-window pass loss estimate over a selected frequency band."""
+    eps = 1e-12
+    win = max(64, int(round(win_sec * fs)))
+    hop = max(1, int(round(hop_sec * fs)))
+    if len(y) < win:
+        return np.array([]), np.array([]), np.array([])
+
+    tc, loss_db, coh_band = [], [], []
+    for a in range(0, len(y) - win + 1, hop):
+        b = a + win
+        yy = y[a:b]
+        rr = r[a:b]
+        nps = min(1024, len(rr))
+        f, Sxx = signal.welch(rr, fs=fs, nperseg=nps)
+        _, Syy = signal.welch(yy, fs=fs, nperseg=nps)
+        _, Syx = signal.csd(yy, rr, fs=fs, nperseg=nps)
+        H = Syx / (Sxx + eps)
+        coh = (np.abs(Syx) ** 2) / (Sxx * Syy + eps)
+
+        m = (f >= band_lo) & (f <= band_hi)
+        if not np.any(m):
+            continue
+        w = coh[m] + eps
+        mag = np.sum(w * np.abs(H[m])) / np.sum(w)
+        cb = float(np.mean(coh[m]))
+        tc.append((a + b) / 2.0 / fs)
+        loss_db.append(-20.0 * np.log10(mag + eps))
+        coh_band.append(cb)
+
+    return np.array(tc), np.array(loss_db), np.array(coh_band)
+
+
+def estimate_pass_loss_beatsync(
+    y,
+    r,
+    fs,
+    est,
+    band_lo=8.0,
+    band_hi=20.0,
+    pre_sec=0.30,
+    post_sec=0.50,
+    beats_per_est=12,
+    step_beats=1,
+):
+    """Beat-synchronous pass loss estimate pooled over rolling beat batches."""
+    eps = 1e-12
+    pre = int(round(pre_sec * fs))
+    post = int(round(post_sec * fs))
+    L = pre + post
+    if L < 32:
+        return np.array([]), np.array([]), np.array([]), 0
+
+    fids = est.get("fids", [])
+    valid = [fid for fid, ty, lg in fids if lg]
+    seg_y = []
+    seg_r = []
+    beat_t = []
+    for fid in valid:
+        a = fid - pre
+        b = fid + post
+        if a < 0 or b > len(y):
+            continue
+        seg_y.append(y[a:b])
+        seg_r.append(r[a:b])
+        beat_t.append(fid / fs)
+
+    nb = len(seg_y)
+    if nb < max(2, beats_per_est):
+        return np.array([]), np.array([]), np.array([]), nb
+
+    seg_y = np.asarray(seg_y)
+    seg_r = np.asarray(seg_r)
+    beat_t = np.asarray(beat_t)
+
+    win = np.hanning(L)
+    nfft = 1
+    while nfft < L:
+        nfft *= 2
+    fr = np.fft.rfftfreq(nfft, d=1.0 / fs)
+    m = (fr >= band_lo) & (fr <= band_hi)
+    if not np.any(m):
+        return np.array([]), np.array([]), np.array([]), nb
+
+    tc = []
+    loss_db = []
+    coh_band = []
+    K = int(max(2, beats_per_est))
+    S = int(max(1, step_beats))
+    for i0 in range(0, nb - K + 1, S):
+        i1 = i0 + K
+        Yb = seg_y[i0:i1]
+        Rb = seg_r[i0:i1]
+        Sxx = np.zeros_like(fr)
+        Syy = np.zeros_like(fr)
+        Syx = np.zeros_like(fr, dtype=np.complex128)
+        for yy, rr in zip(Yb, Rb):
+            X = np.fft.rfft(win * rr, n=nfft)
+            Y = np.fft.rfft(win * yy, n=nfft)
+            Sxx += np.abs(X) ** 2
+            Syy += np.abs(Y) ** 2
+            Syx += Y * np.conj(X)
+        Sxx /= K
+        Syy /= K
+        Syx /= K
+        H = Syx / (Sxx + eps)
+        coh = (np.abs(Syx) ** 2) / (Sxx * Syy + eps)
+        w = coh[m] + eps
+        mag = np.sum(w * np.abs(H[m])) / np.sum(w)
+        cb = float(np.mean(coh[m]))
+        tc.append(float(np.mean(beat_t[i0:i1])))
+        loss_db.append(-20.0 * np.log10(mag + eps))
+        coh_band.append(cb)
+
+    return np.array(tc), np.array(loss_db), np.array(coh_band), nb
+
+
+def plot_pass_loss_frequency(f, pass_loss_db, coh, out=None, show=False, close=True):
+    fig, ax1 = plt.subplots(figsize=(11, 4.5))
+    ax1.plot(f, pass_loss_db, color="C0", lw=1.5, label="pass loss (dB)")
+    ax1.set_title("Estimated EKG->EEG pass loss (frequency domain)")
+    ax1.set_xlabel("Frequency (Hz)")
+    ax1.set_ylabel("Pass loss (dB)")
+    ax1.set_xlim(0, min(60, f[-1]))
+    ax1.grid(alpha=0.3)
+
+    ax2 = ax1.twinx()
+    ax2.plot(f, coh, color="C3", lw=1.0, alpha=0.85, label="coherence")
+    ax2.set_ylabel("Coherence")
+    ax2.set_ylim(0, 1.05)
+
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines1 + lines2, labels1 + labels2, loc="upper right", fontsize=8)
+    plt.tight_layout()
+    if out:
+        plt.savefig(out, dpi=120)
+    if show:
+        plt.show()
+    if close:
+        plt.close()
+
+
+def plot_pass_loss_timevarying(tc, loss_db, coh_band, band_lo, band_hi, out=None, show=False, close=True):
+    fig, ax1 = plt.subplots(figsize=(11, 4.5))
+    ax1.plot(tc, loss_db, color="C0", lw=1.5, label="band pass loss (dB)")
+    ax1.set_title(f"Time-varying EKG->EEG pass loss ({band_lo:.1f}-{band_hi:.1f} Hz)")
+    ax1.set_xlabel("Time (s)")
+    ax1.set_ylabel("Pass loss (dB)")
+    ax1.grid(alpha=0.3)
+
+    ax2 = ax1.twinx()
+    ax2.plot(tc, coh_band, color="C3", lw=1.0, alpha=0.85, label="band coherence")
+    ax2.set_ylabel("Band coherence")
+    ax2.set_ylim(0, 1.05)
+
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines1 + lines2, labels1 + labels2, loc="upper right", fontsize=8)
+    plt.tight_layout()
+    if out:
+        plt.savefig(out, dpi=120)
+    if show:
+        plt.show()
+    if close:
+        plt.close()
+
+
+def plot_pass_loss_beatsync(tc, loss_db, coh_band, band_lo, band_hi, out=None, show=False, close=True):
+    fig, ax1 = plt.subplots(figsize=(11, 4.5))
+    ax1.plot(tc, loss_db, color="C0", lw=1.5, label="beat-synchronous pass loss (dB)")
+    ax1.set_title(f"Figure 3: Beat-synchronous EKG->EEG pass loss ({band_lo:.1f}-{band_hi:.1f} Hz)")
+    ax1.set_xlabel("Time (s)")
+    ax1.set_ylabel("Pass loss (dB)")
+    ax1.grid(alpha=0.3)
+
+    ax2 = ax1.twinx()
+    ax2.plot(tc, coh_band, color="C3", lw=1.0, alpha=0.85, label="beat-band coherence")
+    ax2.set_ylabel("Band coherence")
+    ax2.set_ylim(0, 1.05)
+
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines1 + lines2, labels1 + labels2, loc="upper right", fontsize=8)
+    plt.tight_layout()
+    if out:
+        plt.savefig(out, dpi=120)
+    if show:
+        plt.show()
+    if close:
+        plt.close()
+
 # ============================================================================
 # 5. CLI
 # ============================================================================
@@ -373,6 +585,16 @@ def main():
     sp = sub.add_parser("gen-ecg", help="generate & plot synthetic ECG"); add_common(sp)
     sp = sub.add_parser("gen-eeg", help="generate & plot synthetic EEG + CFA"); add_common(sp)
     sp.add_argument("--drift", type=float, default=0.20); sp.add_argument("--artifact-gain", type=float, default=3.0)
+    sp = sub.add_parser("passloss", help="estimate EKG->EEG pass loss (frequency + time-varying)"); add_common(sp)
+    sp.add_argument("--drift", type=float, default=0.20)
+    sp.add_argument("--artifact-gain", type=float, default=3.0)
+    sp.add_argument("--band-lo", type=float, default=8.0, help="Lower frequency bound (Hz)")
+    sp.add_argument("--band-hi", type=float, default=20.0, help="Upper frequency bound (Hz)")
+    sp.add_argument("--win-sec", type=float, default=8.0, help="Sliding window length for time-varying estimate")
+    sp.add_argument("--hop-sec", type=float, default=2.0, help="Sliding window hop for time-varying estimate")
+    sp.add_argument("--beats-per-est", type=int, default=12, help="Beats pooled per beat-synchronous estimate")
+    sp.add_argument("--beat-step", type=int, default=1, help="Beat hop for beat-synchronous estimate")
+    sp.add_argument("--out-prefix", default=None, help="Output prefix for pass-loss figures")
     sp = sub.add_parser("clean", help="run the cleanup pipeline"); add_common(sp)
     sp.add_argument("--mode", choices=["noncausal", "buffered", "causal"], default="buffered")
     sp.add_argument("--phase-tracker", action=argparse.BooleanOptionalAction, default=True)
@@ -430,6 +652,89 @@ def main():
             plot_clean(t, y, s, cfa, clean_ilc, clean, template, args.fs, args, out=out, show=args.show)
         if out:
             print("wrote", out)
+
+    elif args.cmd == "passloss":
+        t, y, s, cfa, r, beat_t, btype = gen_eeg(args.fs, args.duration, args.seed, args.anomalies,
+                                                 args.drift, args.artifact_gain)
+        f, loss_db_f, coh_f, magH = estimate_pass_loss_freq(y, r, args.fs)
+        tc, loss_db_t, coh_t = estimate_pass_loss_timevarying(
+            y,
+            r,
+            args.fs,
+            band_lo=args.band_lo,
+            band_hi=args.band_hi,
+            win_sec=args.win_sec,
+            hop_sec=args.hop_sec,
+        )
+        est = phase_estimator(r, args.fs, use_pll=True, use_override=True)
+        tc_b, loss_db_b, coh_b, nbeats_used = estimate_pass_loss_beatsync(
+            y,
+            r,
+            args.fs,
+            est,
+            band_lo=args.band_lo,
+            band_hi=args.band_hi,
+            beats_per_est=args.beats_per_est,
+            step_beats=args.beat_step,
+        )
+
+        m = (f >= args.band_lo) & (f <= args.band_hi)
+        if np.any(m):
+            print("Pass loss summary:")
+            print("  band %.1f-%.1f Hz mean pass loss: %.2f dB" % (args.band_lo, args.band_hi, np.mean(loss_db_f[m])))
+            print("  band %.1f-%.1f Hz mean coherence: %.3f" % (args.band_lo, args.band_hi, np.mean(coh_f[m])))
+        if len(loss_db_b) > 0:
+            print("  Figure 3 beat-synchronous mean pass loss: %.2f dB (nbeats=%d)" % (np.mean(loss_db_b), nbeats_used))
+        else:
+            print("  Figure 3 beat-synchronous estimate unavailable (not enough valid beats)")
+
+        if args.out_prefix:
+            out_f = f"{args.out_prefix}_freq.png"
+            out_t = f"{args.out_prefix}_timevary.png"
+            out_b = f"{args.out_prefix}_figure3_beatsync.png"
+        else:
+            out_f = None if args.show else "passloss_freq.png"
+            out_t = None if args.show else "passloss_timevary.png"
+            out_b = None if args.show else "passloss_figure3_beatsync.png"
+
+        plot_pass_loss_frequency(f, loss_db_f, coh_f, out=out_f, show=False)
+        plot_pass_loss_timevarying(tc, loss_db_t, coh_t, args.band_lo, args.band_hi, out=out_t, show=False)
+        if len(tc_b) > 0:
+            plot_pass_loss_beatsync(tc_b, loss_db_b, coh_b, args.band_lo, args.band_hi, out=out_b, show=False)
+
+        if args.show:
+            # Build both figures first, then show once so both windows appear together.
+            plot_pass_loss_frequency(f, loss_db_f, coh_f, out=None, show=False, close=False)
+            plot_pass_loss_timevarying(
+                tc,
+                loss_db_t,
+                coh_t,
+                args.band_lo,
+                args.band_hi,
+                out=None,
+                show=False,
+                close=False,
+            )
+            if len(tc_b) > 0:
+                plot_pass_loss_beatsync(
+                    tc_b,
+                    loss_db_b,
+                    coh_b,
+                    args.band_lo,
+                    args.band_hi,
+                    out=None,
+                    show=False,
+                    close=False,
+                )
+            plt.show()
+            plt.close("all")
+
+        if out_f:
+            print("wrote", out_f)
+        if out_t:
+            print("wrote", out_t)
+        if out_b and len(tc_b) > 0:
+            print("wrote", out_b)
 
 if __name__ == "__main__":
     main()

@@ -12,6 +12,13 @@ Features:
   - Top: EEG channel 1
   - Middle: EEG channel 2
   - Bottom: ECG/EKG channel(s)
+
+Examples:
+    python process_data.py --dataset-root ds005873 --subject sub-001 --session ses-01 --run 01 --duration-sec 30 --show
+    python process_data.py --plot-tracker --dataset-root ds005873 --subject sub-001 --session ses-01 --run 01 --duration-sec 30 --out outputs/sub-001_run-01_tracker.png
+    python process_data.py --plot-passloss --dataset-root ds005873 --subject sub-001 --session ses-01 --run 01 --duration-sec 120 --out-prefix outputs/passloss_real
+    python process_data.py --plot-passloss --dataset-root ds005873 --subject sub-001 --session ses-01 --run 01 --eeg-index 1 --ecg-index 0 --band-lo 8 --band-hi 20 --show
+    python process_data.py --plot-ilc-template --dataset-root ds005873 --subject sub-001 --session ses-01 --run 01 --eeg-index 1 --ecg-index 0 --duration-sec 120 --out outputs/sub-001_run-01_ilc_template.png
 """
 
 from __future__ import annotations
@@ -26,7 +33,7 @@ from typing import List, Sequence, Tuple
 import matplotlib.pyplot as plt
 import mne
 import numpy as np
-from ekg_ilc_rt import phase_estimator
+from scipy.signal import coherence, welch
 
 
 @dataclass
@@ -180,8 +187,494 @@ def _time_axis(n: int, fs: float) -> np.ndarray:
     return np.arange(n, dtype=float) / fs
 
 
+def _resample_linear(x: np.ndarray, fs_in: float, fs_out: float, n_out: int) -> np.ndarray:
+    """Resample 1D signal with linear interpolation to a target sample count."""
+    if n_out <= 1:
+        return np.asarray(x[:n_out], dtype=float)
+    t_in = np.arange(len(x), dtype=float) / float(fs_in)
+    t_out = np.arange(n_out, dtype=float) / float(fs_out)
+    return np.interp(t_out, t_in, x)
+
+
+def _mne_preprocess_trace(
+    x: np.ndarray,
+    fs: float,
+    highpass_hz: float | None,
+    notch_hz: float | None,
+) -> np.ndarray:
+    """Apply optional MNE filtering to a 1D trace."""
+    y = np.asarray(x, dtype=float)
+    if highpass_hz is not None and highpass_hz > 0.0:
+        y = mne.filter.filter_data(
+            y,
+            sfreq=fs,
+            l_freq=highpass_hz,
+            h_freq=None,
+            method="iir",
+            verbose="ERROR",
+        )
+    if notch_hz is not None and notch_hz > 0.0 and notch_hz < (fs / 2.0):
+        y = mne.filter.notch_filter(
+            y,
+            Fs=fs,
+            freqs=[notch_hz],
+            method="iir",
+            verbose="ERROR",
+        )
+    return np.asarray(y, dtype=float)
+
+
+def load_passloss_real_inputs(
+    dataset_root: Path,
+    subject: str = "sub-001",
+    session: str = "ses-01",
+    run: str = "01",
+    pull: bool = True,
+    eeg_index: int = 0,
+    ecg_index: int = 0,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float, str]:
+    """Load and align one EEG + one ECG trace for real-data pass-loss estimation.
+
+    Returns (t, eeg_values, ecg_values, fs, label), aligned to ECG sampling rate.
+    """
+    run_data = load_run_data(
+        dataset_root=dataset_root,
+        subject=subject,
+        session=session,
+        run=run,
+        pull=pull,
+    )
+
+    if not (0 <= eeg_index < len(run_data.eeg)):
+        raise IndexError(f"eeg_index out of range: {eeg_index}, available={len(run_data.eeg)}")
+    if not (0 <= ecg_index < len(run_data.ecg)):
+        raise IndexError(f"ecg_index out of range: {ecg_index}, available={len(run_data.ecg)}")
+
+    eeg = run_data.eeg[eeg_index]
+    ecg = run_data.ecg[ecg_index]
+    fs = float(ecg.fs)
+
+    max_dur = min(len(eeg.values) / eeg.fs, len(ecg.values) / ecg.fs)
+    n_ecg = max(2, int(np.floor(max_dur * ecg.fs)))
+    n_out = max(2, int(np.floor(max_dur * fs)))
+
+    ecg_vals = np.asarray(ecg.values[:n_ecg], dtype=float)
+    if eeg.fs == fs:
+        eeg_vals = np.asarray(eeg.values[:n_out], dtype=float)
+    else:
+        eeg_vals = _resample_linear(np.asarray(eeg.values, dtype=float), eeg.fs, fs, n_out)
+
+    n = min(len(eeg_vals), len(ecg_vals))
+    eeg_vals = eeg_vals[:n]
+    ecg_vals = ecg_vals[:n]
+    t = _time_axis(n, fs)
+    label = f"{dataset_root.name} | {subject} | {session} | run-{run} | EEG={eeg.name} ECG={ecg.name}"
+    return t, eeg_vals, ecg_vals, fs, label
+
+
+def run_real_passloss(
+    dataset_root: Path,
+    subject: str,
+    session: str,
+    run: str,
+    pull: bool,
+    eeg_index: int,
+    ecg_index: int,
+    band_lo: float,
+    band_hi: float,
+    win_sec: float,
+    hop_sec: float,
+    beats_per_est: int,
+    beat_step: int,
+    start_sec: float,
+    duration_sec: float | None,
+    out_prefix: str | None,
+    show: bool,
+) -> None:
+    """Compute and plot real-data pass loss using algorithms from ekg_ilc_rt.py."""
+    import ekg_ilc_rt as rt
+
+    t, y, r, fs, src_label = load_passloss_real_inputs(
+        dataset_root=dataset_root,
+        subject=subject,
+        session=session,
+        run=run,
+        pull=pull,
+        eeg_index=eeg_index,
+        ecg_index=ecg_index,
+    )
+
+    start = max(0.0, float(start_sec))
+    end = t[-1] if duration_sec is None else min(t[-1], start + max(0.0, float(duration_sec)))
+    if end <= start:
+        raise ValueError(f"Invalid time window start={start} end={end}")
+    m = (t >= start) & (t <= end)
+    t = t[m]
+    y = y[m]
+    r = r[m]
+
+    f, loss_db_f, coh_f, _ = rt.estimate_pass_loss_freq(y, r, fs)
+    tc, loss_db_t, coh_t = rt.estimate_pass_loss_timevarying(
+        y,
+        r,
+        fs,
+        band_lo=band_lo,
+        band_hi=band_hi,
+        win_sec=win_sec,
+        hop_sec=hop_sec,
+    )
+    est = rt.phase_estimator(r, fs, use_pll=True, use_override=True)
+    tc_b, loss_db_b, coh_b, nbeats_used = rt.estimate_pass_loss_beatsync(
+        y,
+        r,
+        fs,
+        est,
+        band_lo=band_lo,
+        band_hi=band_hi,
+        beats_per_est=beats_per_est,
+        step_beats=beat_step,
+    )
+
+    bm = (f >= band_lo) & (f <= band_hi)
+    print("Pass loss input: real data")
+    print(f"  {src_label}")
+    print("  window: %.2f-%.2f s  fs=%.3f Hz  n=%d" % (start, end, fs, len(t)))
+    if np.any(bm):
+        print("Pass loss summary:")
+        print("  band %.1f-%.1f Hz mean pass loss: %.2f dB" % (band_lo, band_hi, np.mean(loss_db_f[bm])))
+        print("  band %.1f-%.1f Hz mean coherence: %.3f" % (band_lo, band_hi, np.mean(coh_f[bm])))
+    if len(loss_db_b) > 0:
+        print("  Figure 3 beat-synchronous mean pass loss: %.2f dB (nbeats=%d)" % (np.mean(loss_db_b), nbeats_used))
+    else:
+        print("  Figure 3 beat-synchronous estimate unavailable (not enough valid beats)")
+
+    if out_prefix:
+        out_f = f"{out_prefix}_freq.png"
+        out_t = f"{out_prefix}_timevary.png"
+        out_b = f"{out_prefix}_figure3_beatsync.png"
+    else:
+        base = f"outputs/passloss_real_{subject}_{session}_run-{run}"
+        out_f = None if show else f"{base}_freq.png"
+        out_t = None if show else f"{base}_timevary.png"
+        out_b = None if show else f"{base}_figure3_beatsync.png"
+
+    # Inject pyplot object for ekg_ilc_rt plotting helpers.
+    rt.plt = plt
+    rt.plot_pass_loss_frequency(f, loss_db_f, coh_f, out=out_f, show=False)
+    rt.plot_pass_loss_timevarying(tc, loss_db_t, coh_t, band_lo, band_hi, out=out_t, show=False)
+    if len(tc_b) > 0:
+        rt.plot_pass_loss_beatsync(tc_b, loss_db_b, coh_b, band_lo, band_hi, out=out_b, show=False)
+
+    if show:
+        rt.plot_pass_loss_frequency(f, loss_db_f, coh_f, out=None, show=False, close=False)
+        rt.plot_pass_loss_timevarying(tc, loss_db_t, coh_t, band_lo, band_hi, out=None, show=False, close=False)
+        if len(tc_b) > 0:
+            rt.plot_pass_loss_beatsync(tc_b, loss_db_b, coh_b, band_lo, band_hi, out=None, show=False, close=False)
+        plt.show()
+        plt.close("all")
+
+    if out_f:
+        print(f"Saved figure: {out_f}")
+    if out_t:
+        print(f"Saved figure: {out_t}")
+    if out_b and len(tc_b) > 0:
+        print(f"Saved figure: {out_b}")
+
+
+def run_real_ilc_template_view(
+    dataset_root: Path,
+    subject: str,
+    session: str,
+    run: str,
+    pull: bool,
+    eeg_index: int,
+    ecg_index: int,
+    start_sec: float,
+    duration_sec: float | None,
+    out_path: Path | None,
+    show: bool,
+    highpass_hz: float | None,
+    notch_hz: float | None,
+) -> None:
+    """Lock beats on one real recording, build non-causal ILC template, and plot it against one ECG beat."""
+    import ekg_ilc_rt as rt
+
+    t, y, r, fs, src_label = load_passloss_real_inputs(
+        dataset_root=dataset_root,
+        subject=subject,
+        session=session,
+        run=run,
+        pull=pull,
+        eeg_index=eeg_index,
+        ecg_index=ecg_index,
+    )
+
+    start = max(0.0, float(start_sec))
+    end = t[-1] if duration_sec is None else min(t[-1], start + max(0.0, float(duration_sec)))
+    if end <= start:
+        raise ValueError(f"Invalid time window start={start} end={end}")
+
+    m = (t >= start) & (t <= end)
+    t = t[m]
+    y = y[m]
+    r = r[m]
+
+    y = _mne_preprocess_trace(y, fs, highpass_hz=highpass_hz, notch_hz=notch_hz)
+
+    est = rt.phase_estimator(r, fs, use_pll=True, use_override=True, debug=True)
+    clean_ilc, template = rt.ilc_clean(y, fs, est, mode="noncausal", use_ilc=True)
+
+    fids = np.array([int(fid) for fid, _, lg in est["fids"] if lg], dtype=int)
+    if len(fids) == 0:
+        raise RuntimeError("No learnable beats were found for non-causal ILC template extraction.")
+
+    ra, Lw = rt._template_dims(fs)
+    ts = (np.arange(Lw) - ra) / fs
+    beat_idx = fids[len(fids) // 2]
+    lo = beat_idx - ra
+    hi = lo + Lw
+    if lo < 0 or hi > len(r):
+        valid = [fid for fid in fids if fid - ra >= 0 and fid - ra + Lw <= len(r)]
+        if not valid:
+            raise RuntimeError("Could not find a fully contained ECG beat segment for reference plotting.")
+        beat_idx = valid[len(valid) // 2]
+        lo = beat_idx - ra
+        hi = lo + Lw
+
+    ref_beat = r[lo:hi]
+    tpl_rms = float(np.sqrt(np.mean(template**2)))
+    tpl_p2p = float(np.max(template) - np.min(template))
+    ref_rms = float(np.sqrt(np.mean(ref_beat**2)))
+    ref_p2p = float(np.max(ref_beat) - np.min(ref_beat))
+
+    beat_windows = []
+    for fid, ty, lg in est["fids"]:
+        if not lg:
+            continue
+        beat_lo = fid - ra
+        beat_hi = beat_lo + Lw
+        if beat_lo < 0 or beat_hi > len(r):
+            continue
+        beat_windows.append(r[beat_lo:beat_hi])
+    if len(beat_windows) == 0:
+        raise RuntimeError("Could not extract any peak-aligned ECG beat windows.")
+    ecg_beat_avg = np.mean(np.vstack(beat_windows), axis=0)
+
+    def _coherence_curve(x: np.ndarray, y: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        nseg = min(len(x), len(y), 64)
+        nseg = max(32, nseg)
+        f_coh, cxy = coherence(x, y, fs=fs, nperseg=nseg, detrend="constant")
+        return f_coh, cxy
+
+    def _mean_band_coh(f_coh: np.ndarray, cxy: np.ndarray, lo_hz: float = 1.0, hi_hz: float = 20.0) -> float:
+        band = (f_coh >= lo_hz) & (f_coh <= hi_hz)
+        if not np.any(band):
+            return float("nan")
+        return float(np.mean(cxy[band]))
+
+    spec_fs = fs
+    spec_nperseg = min(len(template), max(64, int(round(spec_fs * 4.0))))
+    f_tpl, pxx_tpl = welch(template, fs=spec_fs, nperseg=spec_nperseg, detrend="constant")
+    f_ref, pxx_ref = welch(ref_beat, fs=spec_fs, nperseg=spec_nperseg, detrend="constant")
+    max_spec_freq = min(60.0, spec_fs / 2.0)
+
+    print("Non-causal ILC template view (real data)")
+    print(f"  {src_label}")
+    print("  window: %.2f-%.2f s  fs=%.3f Hz  n=%d" % (start, end, fs, len(t)))
+    print("  template rms: %.3e V  p2p: %.3e V" % (tpl_rms, tpl_p2p))
+    print("  reference ECG beat rms: %.3e V  p2p: %.3e V" % (ref_rms, ref_p2p))
+    print("  learnable beats used: %d" % len(fids))
+    print("  peak-aligned ECG beats used: %d" % len(beat_windows))
+    if highpass_hz is not None or notch_hz is not None:
+        hp_text = "none" if highpass_hz is None else f"{highpass_hz:.2f} Hz"
+        notch_text = "none" if notch_hz is None else f"{notch_hz:.2f} Hz"
+        print(f"  preprocessing: high-pass={hp_text} notch={notch_text}")
+
+    fig, axes = plt.subplots(3, 1, figsize=(10.5, 7.6), sharex=False)
+    axes[0].plot(ts, template, color="C0", lw=1.6, label="Non-causal ILC template (EEG artifact)")
+    axes[0].axvline(0.0, color="0.5", lw=0.8, ls="--")
+    axes[0].axvspan(-0.06, 0.06, color="C1", alpha=0.08, label="QRS +/-60 ms")
+    axes[0].set_ylabel("Template amplitude (V)")
+    axes[0].set_title("Non-causal ILC average template vs ECG beat phase reference")
+    axes[0].grid(alpha=0.3)
+    axes[0].legend(loc="upper right", fontsize=8)
+
+    axes[1].plot(ts, ref_beat, color="C3", lw=1.2, label="One ECG beat (phase reference)")
+    axes[1].axvline(0.0, color="0.5", lw=0.8, ls="--")
+    axes[1].axvspan(-0.06, 0.06, color="C1", alpha=0.08)
+    axes[1].set_ylabel("ECG amplitude (V)")
+    axes[1].grid(alpha=0.3)
+    axes[1].legend(loc="upper right", fontsize=8)
+
+    axes[2].semilogy(f_tpl[f_tpl <= max_spec_freq], pxx_tpl[f_tpl <= max_spec_freq], color="C0", lw=1.5, label="Template spectrum")
+    axes[2].semilogy(f_ref[f_ref <= max_spec_freq], pxx_ref[f_ref <= max_spec_freq], color="C3", lw=1.2, alpha=0.9, label="ECG beat spectrum")
+    axes[2].set_xlabel("Frequency (Hz)")
+    axes[2].set_ylabel("PSD (V^2/Hz)")
+    axes[2].set_xlim(0.0, max_spec_freq)
+    axes[2].grid(alpha=0.3, which="both")
+    axes[2].legend(loc="upper right", fontsize=8)
+    plt.tight_layout()
+
+    if out_path is not None:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(out_path, dpi=130)
+        print(f"Saved figure: {out_path}")
+
+    # Figure 3: peak-aligned ECG average and comparison against the EEG template.
+    fig3, axes3 = plt.subplots(2, 1, figsize=(10.5, 6.6), sharex=True)
+    for beat in beat_windows[: min(12, len(beat_windows))]:
+        axes3[0].plot(ts, beat, color="0.7", lw=0.55, alpha=0.35)
+    axes3[0].plot(ts, ecg_beat_avg, color="C3", lw=1.5, label="Peak-aligned ECG average")
+    axes3[0].axvline(0.0, color="0.5", lw=0.8, ls="--")
+    axes3[0].axvspan(-0.06, 0.06, color="C1", alpha=0.08)
+    axes3[0].set_ylabel("ECG amplitude (V)")
+    axes3[0].set_title("Peak-aligned ECG averaging")
+    axes3[0].grid(alpha=0.3)
+    axes3[0].legend(loc="upper right", fontsize=8)
+
+    axes3[1].plot(ts, template, color="C0", lw=1.5, label="EEG non-causal template")
+    axes3[1].plot(ts, ecg_beat_avg, color="C3", lw=1.2, alpha=0.9, label="Peak-aligned ECG average")
+    axes3[1].axvline(0.0, color="0.5", lw=0.8, ls="--")
+    axes3[1].axvspan(-0.06, 0.06, color="C1", alpha=0.08)
+    axes3[1].set_xlabel("Time around R (s)")
+    axes3[1].set_ylabel("Amplitude (V)")
+    axes3[1].grid(alpha=0.3)
+    axes3[1].legend(loc="upper right", fontsize=8)
+    plt.tight_layout()
+
+    if out_path is not None:
+        out3 = out_path.with_name(f"{out_path.stem}_figure3_ecg_avg{out_path.suffix}")
+        plt.savefig(out3, dpi=130)
+        print(f"Saved figure: {out3}")
+
+    # Figure 4: one-beat coherence between EEG/template and ECG.
+    f_raw_coh, coh_raw = _coherence_curve(y[lo:hi], ref_beat)
+    f_tpl_coh, coh_tpl = _coherence_curve(template, ref_beat)
+    fig4, ax4 = plt.subplots(figsize=(10.5, 4.4))
+    ax4.plot(f_raw_coh, coh_raw, color="0.7", lw=1.0, label="Raw EEG vs ECG beat")
+    ax4.plot(f_tpl_coh, coh_tpl, color="C0", lw=1.6, label="Template vs ECG beat")
+    ax4.set_xlim(0.0, min(60.0, fs / 2.0))
+    ax4.set_ylim(0.0, 1.05)
+    ax4.set_xlabel("Frequency (Hz)")
+    ax4.set_ylabel("Coherence")
+    ax4.set_title("One-beat coherence: template vs ECG")
+    ax4.grid(alpha=0.3)
+    ax4.legend(loc="upper right", fontsize=8)
+    plt.tight_layout()
+
+    if out_path is not None:
+        out4 = out_path.with_name(f"{out_path.stem}_figure4_coherence{out_path.suffix}")
+        plt.savefig(out4, dpi=130)
+        print(f"Saved figure: {out4}")
+
+    # Figure 5: causal and buffered templates in the time domain.
+    clean_buffered, template_buffered = rt.ilc_clean(y, fs, est, mode="buffered", use_ilc=True)
+    clean_causal, template_causal = rt.ilc_clean(y, fs, est, mode="causal", use_ilc=True)
+    f_buf_coh, coh_buf = _coherence_curve(template_buffered, ref_beat)
+    f_cau_coh, coh_cau = _coherence_curve(template_causal, ref_beat)
+    f_non_coh, coh_non = _coherence_curve(template, ref_beat)
+
+    fig5, ax5 = plt.subplots(figsize=(10.5, 4.8))
+    ax5.plot(ts, ref_beat, color="C3", lw=1.1, alpha=0.85, label="ECG beat")
+    ax5.plot(ts, template, color="C0", lw=1.4, label="Non-causal template")
+    ax5.plot(ts, template_buffered, color="C2", lw=1.2, label="Buffered template")
+    ax5.plot(ts, template_causal, color="C4", lw=1.2, label="Causal template")
+    ax5.axvline(0.0, color="0.5", lw=0.8, ls="--")
+    ax5.axvspan(-0.06, 0.06, color="C1", alpha=0.08)
+    ax5.set_xlabel("Time around R (s)")
+    ax5.set_ylabel("Amplitude (V)")
+    ax5.set_title("Causal and buffered templates in the time domain")
+    ax5.grid(alpha=0.3)
+    ax5.legend(loc="upper right", fontsize=8)
+    plt.tight_layout()
+
+    if out_path is not None:
+        out5 = out_path.with_name(f"{out_path.stem}_figure5_causal_buffered_time{out_path.suffix}")
+        plt.savefig(out5, dpi=130)
+        print(f"Saved figure: {out5}")
+
+    # Figure 6: coherence-only comparison on its own axis.
+    fig6, ax6 = plt.subplots(figsize=(10.5, 4.4))
+    ax6.plot(f_non_coh, coh_non, color="C0", lw=1.4, label="Non-causal template vs ECG")
+    ax6.plot(f_buf_coh, coh_buf, color="C2", lw=1.2, label="Buffered template vs ECG")
+    ax6.plot(f_cau_coh, coh_cau, color="C4", lw=1.2, label="Causal template vs ECG")
+    ax6.set_xlim(0.0, min(60.0, fs / 2.0))
+    ax6.set_ylim(0.0, 1.05)
+    ax6.set_xlabel("Frequency (Hz)")
+    ax6.set_ylabel("Coherence")
+    ax6.set_title("Template coherence against ECG beat")
+    ax6.grid(alpha=0.3)
+    ax6.legend(loc="upper right", fontsize=8)
+    plt.tight_layout()
+
+    if out_path is not None:
+        out6 = out_path.with_name(f"{out_path.stem}_figure6_causal_buffered_coherence{out_path.suffix}")
+        plt.savefig(out6, dpi=130)
+        print(f"Saved figure: {out6}")
+
+    mean_raw_coh = _mean_band_coh(f_raw_coh, coh_raw)
+    mean_tpl_coh = _mean_band_coh(f_tpl_coh, coh_tpl)
+    mean_buf_coh = _mean_band_coh(f_buf_coh, coh_buf)
+    mean_cau_coh = _mean_band_coh(f_cau_coh, coh_cau)
+    print("  one-beat mean coherence 1-20 Hz:")
+    print("    raw EEG vs ECG: %.3f" % mean_raw_coh)
+    print("    template vs ECG: %.3f" % mean_tpl_coh)
+    print("    buffered template vs ECG: %.3f" % mean_buf_coh)
+    print("    causal template vs ECG: %.3f" % mean_cau_coh)
+
+    # Figure 2: ECG on top, EEG before/after cleanup in the middle, residual error at the bottom.
+    fig2, axes = plt.subplots(3, 1, figsize=(11.2, 8.2), sharex=True)
+    axes[0].plot(t, r, color="C3", lw=0.9, label="ECG")
+    axes[0].set_ylabel("ECG amplitude (V)")
+    axes[0].set_title("Aligned ECG and EEG cleanup over the selected duration")
+    axes[0].grid(alpha=0.3)
+    axes[0].legend(loc="upper right", fontsize=8)
+
+    axes[1].plot(t, y, color="C0", lw=1.0, label="Original EEG")
+    axes[1].plot(t, clean_ilc, color="C2", lw=1.0, label="Non-causal cleaned EEG")
+    axes[1].set_xlabel("Time (s)")
+    axes[1].set_ylabel("EEG amplitude (V)")
+    axes[1].grid(alpha=0.3)
+    axes[1].legend(loc="upper right", fontsize=8)
+
+    residual = y - clean_ilc
+    axes[2].plot(t, residual, color="C4", lw=0.9, label="Residual: original EEG - cleaned EEG")
+    axes[2].axhline(0.0, color="0.5", lw=0.8, ls="--")
+    axes[2].set_xlabel("Time (s)")
+    axes[2].set_ylabel("Residual (V)")
+    axes[2].grid(alpha=0.3)
+    axes[2].legend(loc="upper right", fontsize=8)
+
+    if start > 0.0 or end < t[-1]:
+        axes[0].set_xlim(start, end)
+        axes[1].set_xlim(start, end)
+        axes[2].set_xlim(start, end)
+
+    if figure_label := f"{dataset_root.name} | {subject} | {session} | run-{run}":
+        fig2.suptitle(f"{figure_label} | ECG reference and EEG cleanup detail", fontsize=11)
+        plt.tight_layout(rect=[0, 0, 1, 0.96])
+    else:
+        plt.tight_layout()
+
+    if out_path is not None:
+        out2 = out_path.with_name(f"{out_path.stem}_comparison{out_path.suffix}")
+        plt.savefig(out2, dpi=130)
+        print(f"Saved figure: {out2}")
+
+    if show:
+        plt.show()
+    plt.close(fig3)
+    plt.close(fig4)
+    plt.close(fig5)
+    plt.close(fig6)
+    plt.close(fig)
+    plt.close(fig2)
+
+
 def run_pi_tracker_comparison(ecg_trace: SignalTrace) -> TrackerComparison:
     """Run PI/phase tracker on ECG and return fiducial diagnostics."""
+    from ekg_ilc_rt import phase_estimator
+
     ecg = ecg_trace.values
     fs = ecg_trace.fs
     t = _time_axis(len(ecg), fs)
@@ -440,6 +933,52 @@ def plot_run_data(
     if end <= start:
         raise ValueError(f"Invalid time window start={start} end={end}")
 
+    fig_psd, ax_psd = plt.subplots(figsize=(11, 4.4))
+    traces = [
+        (eeg1, f"EEG 1: {eeg1.name}", "C0"),
+        (eeg2, f"EEG 2: {eeg2.name}", "C1"),
+    ]
+    if run_data.ecg:
+        traces.extend(
+            (trace, f"ECG/EKG: {trace.name}", f"C{2 + idx}")
+            for idx, trace in enumerate(run_data.ecg)
+        )
+
+    for trace, label, color in traces:
+        t = _time_axis(len(trace.values), trace.fs)
+        mask = (t >= start) & (t <= end)
+        x = np.asarray(trace.values[mask], dtype=float)
+        if x.size < 2:
+            continue
+        fs = float(trace.fs)
+        nperseg = min(x.size, max(64, int(round(fs * 4.0))))
+        if nperseg < 2:
+            continue
+        f, pxx = welch(x, fs=fs, nperseg=nperseg, detrend="constant")
+        keep = f <= min(60.0, fs / 2.0)
+        if np.any(keep):
+            ax_psd.semilogy(f[keep], pxx[keep], lw=1.0, color=color, label=label)
+
+    max_plot_freq = min([60.0, eeg1.fs / 2.0, eeg2.fs / 2.0] + [trace.fs / 2.0 for trace in run_data.ecg])
+    ax_psd.set_xlim(0.0, max_plot_freq)
+    ax_psd.set_title("Welch power spectral density of selected window")
+    ax_psd.set_xlabel("Frequency (Hz)")
+    ax_psd.set_ylabel("PSD (V^2/Hz)")
+    ax_psd.grid(alpha=0.3, which="both")
+    ax_psd.legend(loc="upper right", fontsize=8)
+
+    if figure_label:
+        fig_psd.suptitle(figure_label + " | Welch spectrum", fontsize=11)
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+    else:
+        plt.tight_layout()
+
+    if out_path is not None:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_psd = out_path.with_name(f"{out_path.stem}_spectrum{out_path.suffix}")
+        plt.savefig(out_psd, dpi=120)
+        print(f"Saved figure: {out_psd}")
+
     fig, axes = plt.subplots(3, 1, figsize=(12, 7), sharex=True)
 
     for ax, trace, title, color in [
@@ -476,7 +1015,9 @@ def plot_run_data(
         plt.savefig(out_path, dpi=120)
         print(f"Saved figure: {out_path}")
     if show:
+        plt.figure(fig_psd.number)
         plt.show()
+    plt.close(fig_psd)
     plt.close(fig)
 
 
@@ -486,8 +1027,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--dataset-root",
-        default="datasets/ds005873",
-        help="Path to ds005873 dataset root",
+        default="ds005873",
+        help="Dataset root path. Relative paths are resolved under <project>/datasets",
     )
     parser.add_argument("--subject", default="sub-001", help="Subject ID")
     parser.add_argument("--session", default="ses-01", help="Session ID")
@@ -522,12 +1063,95 @@ def parse_args() -> argparse.Namespace:
         default=False,
         help="Run PI tracker on ECG and plot fid/peak/base/state and RR tracking",
     )
+    parser.add_argument(
+        "--plot-passloss",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Run real-data pass-loss analysis (Figures 1-3) using ekg_ilc_rt algorithms",
+    )
+    parser.add_argument(
+        "--plot-ilc-template",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Lock beats, run non-causal ILC, and plot the averaged template against one ECG beat",
+    )
+    parser.add_argument("--eeg-index", type=int, default=0, help="EEG trace index for pass-loss mode")
+    parser.add_argument("--ecg-index", type=int, default=0, help="ECG trace index for pass-loss mode")
+    parser.add_argument("--band-lo", type=float, default=8.0, help="Pass-loss lower band edge (Hz)")
+    parser.add_argument("--band-hi", type=float, default=20.0, help="Pass-loss upper band edge (Hz)")
+    parser.add_argument("--win-sec", type=float, default=8.0, help="Time-varying pass-loss window (s)")
+    parser.add_argument("--hop-sec", type=float, default=2.0, help="Time-varying pass-loss hop (s)")
+    parser.add_argument("--beats-per-est", type=int, default=12, help="Beat-synchronous pooled beats")
+    parser.add_argument("--beat-step", type=int, default=1, help="Beat-synchronous step in beats")
+    parser.add_argument("--out-prefix", default=None, help="Pass-loss output prefix (writes *_freq/timevary/figure3_beatsync)")
+    parser.add_argument(
+        "--ilc-highpass-hz",
+        type=float,
+        default=0.5,
+        help="High-pass cutoff for real-data ILC template preprocessing (default 0.5 Hz)",
+    )
+    parser.add_argument(
+        "--ilc-notch-hz",
+        type=float,
+        default=50.0,
+        help="Notch frequency for real-data ILC template preprocessing (default 50 Hz)",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    dataset_root = Path(args.dataset_root).expanduser().resolve()
+    project_root = Path(__file__).resolve().parent.parent
+    datasets_root = project_root / "datasets"
+    ds_arg = Path(args.dataset_root).expanduser()
+    if ds_arg.is_absolute():
+        dataset_root = ds_arg.resolve()
+    elif ds_arg.parts and ds_arg.parts[0] == "datasets":
+        dataset_root = (project_root / ds_arg).resolve()
+    else:
+        dataset_root = (datasets_root / ds_arg).resolve()
+
+    if args.plot_passloss:
+        run_real_passloss(
+            dataset_root=dataset_root,
+            subject=args.subject,
+            session=args.session,
+            run=args.run,
+            pull=args.pull,
+            eeg_index=args.eeg_index,
+            ecg_index=args.ecg_index,
+            band_lo=args.band_lo,
+            band_hi=args.band_hi,
+            win_sec=args.win_sec,
+            hop_sec=args.hop_sec,
+            beats_per_est=args.beats_per_est,
+            beat_step=args.beat_step,
+            start_sec=args.start_sec,
+            duration_sec=args.duration_sec,
+            out_prefix=args.out_prefix,
+            show=args.show,
+        )
+        return
+
+    if args.plot_ilc_template:
+        out_path = Path(args.out).expanduser().resolve() if args.out else None
+        run_real_ilc_template_view(
+            dataset_root=dataset_root,
+            subject=args.subject,
+            session=args.session,
+            run=args.run,
+            pull=args.pull,
+            eeg_index=args.eeg_index,
+            ecg_index=args.ecg_index,
+            start_sec=args.start_sec,
+            duration_sec=args.duration_sec,
+            out_path=out_path,
+            show=args.show,
+            highpass_hz=args.ilc_highpass_hz,
+            notch_hz=args.ilc_notch_hz,
+        )
+        return
+
     run_data = load_run_data(
         dataset_root=dataset_root,
         subject=args.subject,
