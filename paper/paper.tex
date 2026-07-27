@@ -193,62 +193,52 @@ continuously between beats, so that $\hat{\phi}(t)$ remains well-defined even in
 causal operation where the next R-peak has not yet been observed.
 
 % ===========================================================================
-\section{Repetitive Disturbance Rejection}
-Given the phase-indexed disturbance model in Sec.~II, we perform cancellation by repetitive 
-disturbance rejection with iterative learning on heartbeat-aligned samples. The cancellation target 
-is the beat-synchronous component of CFA, while asynchronous components are left in the residual.
+\section{Non-Causal Repetitive Disturbance Rejection}
 
-\subsection{ILC/repetitive template cancellation}
-A template $m(o)$, indexed by time-since-R offset $o$, stores $d_p$. Cancellation is a table lookup 
-at the current offset,
-\begin{equation}
-e_I(t) = y(t) - m(o(t)),
-\label{eq:ilccancel}
-\end{equation}
-and learning is a first-order ILC (leaky-integrator) update,
-\begin{equation}
-m(o) \leftarrow m(o) + a \, e_I(t),
-\label{eq:ilclearn}
-\end{equation}
-applied only on normal beats, with $a$ the ILC learning gain. Because we estimate an additive 
-disturbance rather than invert a plant, the effective plant is the identity, and the ILC 
-convergence condition reduces to $|q(1-a)| < 1$ for a $Q$-filter/forgetting factor 
-$q\in(0,1]$---trivially satisfied for any sane $a$. The factor $q$ trades asymptotic cancellation 
-for drift tracking.
+This section shows how the phase-indexed signal model of Sec.~II directly yields a practical
+non-causal (offline) algorithm that requires only two passes over the recording.
+The procedure uses only R-peak \emph{timing}---not the ECG waveform---making it compatible
+with any heartbeat reference (chest ECG, wrist PPG, smartwatch) that supplies accurate
+$\hat{t}_k$. We validate the result on the real ear-EEG segment already shown in
+Fig.~\ref{fig:real_aligned3beats}.
 
-Detection latency forces a mode choice: the R-peak is confirmed $\sim$60--80~ms after it occurs, so 
-\emph{buffered} operation ($\approx$1-beat latency) anchors each sample to its detected $t_k$ and 
-removes the sharp R spike fully, whereas \emph{causal} (zero-latency) operation must anchor to the 
-PLL-predicted R-time; the R-spike depth is then capped by RR predictability (RSA-lag dominated). 
-The broad P and T waves survive prediction; only the R spike is latency-critical.
+\subsection{Two-Pass Non-Causal Procedure}
 
-\subsection{Safeguards against cancellation of neural signal}
-\label{sec:safeguards}
-Because $s(t)$ can share frequency content with $d(t)$, frequency alone cannot separate them; the 
-synthesis instead relies on \emph{phase-lock} and \emph{reference-correlation}, together with two 
-explicit limiters.
+\emph{Pass 1 --- Template estimation.}
+Scan the full EEG recording once with the set of $N_r$ detected R-peak instants
+$\{\hat{t}_k\}_{k=1}^{N_r}$. For each phase index $p$ (Eq.~\eqref{eq:phase_index_set}),
+collect the EEG sample $y(\hat{t}_k + p/f_s)$ from every beat $k$ and accumulate the sum.
+After scanning all beats, divide by the per-index count to form the template
+$\hat{d}_r(\phi_p)$ per Eq.~\eqref{eq:drhat}. The result is a single waveform of length
+$n_t = n_{\mathrm{pre}} + n_{\mathrm{post}}$ that captures the mean R-peak-locked cardiac
+disturbance over the entire session.
 
-\emph{Phase-lock gate (structural).} The ILC template \eqref{eq:ilclearn} only accumulates energy 
-that is consistent across many beats at the same offset $o$---it is structurally an evoked average. 
-EEG activity that is not phase-locked to the R-peak averages toward zero in $m(o)$ rather than 
-being learned, regardless of its frequency. Cancellation \eqref{eq:ilccancel} is further confined 
-to samples inside the template window $o(t)\in[0,L_w)$; outside it, $y(t)$ is untouched.
+\emph{Pass 2 --- Repetitive disturbance subtraction.}
+Scan the EEG recording a second time. For each sample $y(t)$, look up the template
+value at the phase index $\hat{\phi}(t)$ nearest to the current time offset from the
+closest R-peak, and subtract: $\hat{s}(t) = y(t) - \hat{d}_r(\hat{\phi}(t))$
+(Eq.~\eqref{eq:cancel_phaseavg}). Samples outside the template window
+($|t - \hat{t}_k| > n_{\mathrm{post}}/f_s$ for all $k$) are passed through unchanged.
+By Note~2, the noise floor of the template averages toward zero as $N_r$ grows.
 
-\emph{Amplitude limiter.} To bound worst-case over-subtraction, cancellation is capped using the 
-already-computed peak tracker $pk(t)$ from \eqref{eq:gate}:
-\begin{equation}
-e_I(t) = y(t) - \mathrm{sat}_{\pm\beta\, pk(t)}\big(m(o(t))\big), \quad \beta \in (0,1),
-\label{eq:limiter}
-\end{equation}
-where $\mathrm{sat}_{\pm L}(x) = \max(-L,\min(L,x))$. The subtracted amount can never exceed a 
-fraction $\beta$ of the tracked ECG amplitude, a physically motivated ceiling on plausible CFA 
-magnitude.
+Fig.~\ref{fig:noncausal_cleanup} shows the result of this two-pass procedure applied to the
+SeizeIT2 segment from Fig.~\ref{fig:real_aligned3beats}: the template is built from the full
+5-minute recording ($N_r = 359$ learnable beats), and the same 3-beat display window is
+extracted from the cleaned signal. Comparing the bottom panel of Fig.~\ref{fig:noncausal_cleanup}
+with EEG~2 in Fig.~\ref{fig:real_aligned3beats}, the heartbeat-locked deflections are
+substantially reduced, confirming that the artifact is genuinely R-peak-synchronous and
+addressable by the phase-indexed template.
 
-\emph{Remaining risk.} The heartbeat-evoked potential (HEP) is genuine neural activity that 
-\emph{is} phase-locked to the heartbeat \cite{park2019}; phase-lock alone cannot distinguish it 
-from CFA, and it is only partially protected by \eqref{eq:limiter}. We report 
-alpha-rhythm preservation (Sec.~VII) as an indirect check; an explicit HEP-preservation test is 
-future work.
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\linewidth]{fig_real/fig_noncausal_cleanup.png}
+\caption{Non-causal repetitive CFA cancellation on the same 3-beat segment as Fig.~1.
+Top: chest ECG with detected R-peaks. Bottom: original (orange) and non-causally cleaned (green)
+EEG~2 overlaid (MNE-preprocessed: 50~Hz notch, 0.5~Hz high-pass; template subtracted via
+Eq.~\eqref{eq:cancel_phaseavg}). Template estimated from the full recording session
+($N_r > 300$ beats), with this 3-beat window extracted from within the cleaned signal.}
+\label{fig:noncausal_cleanup}
+\end{figure}
 
 % ===========================================================================
 \section{ECG Phase Estimator}

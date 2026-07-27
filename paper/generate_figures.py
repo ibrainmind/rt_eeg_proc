@@ -295,6 +295,113 @@ def fig1_real_aligned(
     print(f"wrote Figure 1: {out_abs}")
 
 
+def fig2_noncausal_cleanup(
+    dataset_root: str,
+    subject: str,
+    session: str,
+    run: str,
+    start_sec: float,
+    duration_sec: float,
+    eeg2_index: int,
+    ecg_index: int,
+    highpass_hz: float,
+    notch_hz: float,
+    full_dur_sec: float = 300.0,
+    out_path: str = "fig_real/fig_noncausal_cleanup.png",
+) -> None:
+    """Generate Figure 2: non-causal repetitive cancellation on the same 3-beat segment as Fig. 1.
+
+    Loads the full recording from t=0 (full_dur_sec), runs noncausal ILC across all beats,
+    then extracts the 3-beat display window (start_sec..start_sec+duration_sec) for plotting.
+    This is the true non-causal procedure: template averaged over the entire session.
+    """
+    ds_path = dataset_root
+    if not os.path.isabs(ds_path):
+        ds_path = os.path.join(REPO_ROOT, ds_path)
+    ds_path_abs = Path(os.path.abspath(ds_path))
+
+    # Load the full recording from t=0 so the template uses all available beats.
+    t_full, _, eeg2_full, ecg_full, fs, _, _, eeg2_name, ecg_name = P.load_aligned_real_segment(
+        dataset_root=ds_path_abs,
+        subject=subject,
+        session=session,
+        run=run,
+        pull=True,
+        eeg_indices=(0, eeg2_index),
+        ecg_index=ecg_index,
+        start_sec=0.0,
+        duration_sec=full_dur_sec,
+        highpass_hz=highpass_hz,
+        notch_hz=notch_hz,
+    )
+
+    # Run phase estimator on the full ECG.
+    est_full = C.phase_estimator(ecg_full, fs, use_pll=True, use_override=True)
+    n_r = len([f for f in est_full.get("fids", []) if f[2]])  # learnable beats
+    print(f"  Non-causal template: {n_r} learnable beats over {full_dur_sec:.0f}s")
+
+    # Non-causal ILC: average template over all N_r beats, subtract (Eqs. 4a, 5).
+    eeg2_clean_full, _ = C.ilc_clean(eeg2_full, fs, est_full, mode="noncausal", use_ilc=True)
+
+    # Extract display window by time index.
+    i0 = int(round(start_sec * fs))
+    i1 = i0 + int(round(duration_sec * fs))
+    i0 = max(0, min(i0, len(t_full) - 1))
+    i1 = max(i0 + 1, min(i1, len(t_full)))
+
+    t_disp     = t_full[i0:i1]
+    eeg2_disp  = eeg2_full[i0:i1]
+    eeg2_clean = eeg2_clean_full[i0:i1]
+    ecg_disp   = ecg_full[i0:i1]
+
+    # R-peak times within display window.
+    fid_idx = np.array([int(fid) for fid, _, _ in est_full.get("fids", [])], dtype=int)
+    fid_idx = fid_idx[(fid_idx >= i0) & (fid_idx < i1)]
+    r_times = t_full[fid_idx] if fid_idx.size > 0 else np.array([], dtype=float)
+
+    shade_hw = 0.06
+    fig, axes = plt.subplots(2, 1, figsize=(7.2, 4.4), sharex=True,
+                             gridspec_kw={"height_ratios": [1, 2]})
+
+    # Top: ECG with R-peak marks.
+    axes[0].plot(t_disp, ecg_disp, lw=0.9, color="C3", label=ecg_name)
+    if r_times.size > 0:
+        r_vals = np.interp(r_times, t_disp, ecg_disp)
+        axes[0].scatter(r_times, r_vals, s=14, color="k", zorder=4, label="R peaks")
+    axes[0].set_ylabel("V")
+    axes[0].set_title("ECG/EKG")
+    axes[0].legend(loc="upper right")
+    axes[0].grid(alpha=0.25)
+
+    # Bottom: raw and cleaned EEG 2 overlaid.
+    axes[1].plot(t_disp, eeg2_disp,  lw=0.8, color="C1",   label="original",        alpha=0.75)
+    axes[1].plot(t_disp, eeg2_clean, lw=1.0, color="C2",   label=f"cleaned (N_r={n_r})")
+    axes[1].set_ylabel("V")
+    axes[1].set_title(f"EEG 2: {eeg2_name}")
+    axes[1].set_xlabel("Time (s)")
+    axes[1].legend(loc="upper right")
+    axes[1].grid(alpha=0.25)
+
+    # Shade and mark R-peak neighborhoods on both panels.
+    for ax in axes:
+        for rt in r_times:
+            ax.axvspan(rt - shade_hw, rt + shade_hw, color="C1", alpha=0.10, lw=0)
+        for rt in r_times:
+            ax.axvline(rt, color="0.45", lw=0.7, ls="--", alpha=0.55)
+
+    fig.suptitle(
+        "Non-Causal Repetitive CFA Cancellation (SeizeIT2 ds005873)",
+        fontsize=12, y=0.98,
+    )
+    plt.tight_layout(rect=[0, 0, 1, 0.975])
+
+    out_abs = out_path if os.path.isabs(out_path) else os.path.join(THIS_DIR, out_path)
+    os.makedirs(os.path.dirname(out_abs), exist_ok=True)
+    plt.savefig(out_abs, dpi=150)
+    plt.close(fig)
+    print(f"wrote Figure 2: {out_abs}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Regenerate manuscript figures.")
     parser.add_argument("--dataset-root", default="datasets/ds005873", help="Dataset root path")
@@ -315,6 +422,16 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--skip-fig1-real", action="store_true", help="Skip Figure 1 real-data generation")
     parser.add_argument("--only-fig1-real", action="store_true", help="Generate only Figure 1")
+    parser.add_argument(
+        "--fig2-full-dur-sec", type=float, default=300.0,
+        help="Figure 2: duration of full recording loaded from t=0 for non-causal template (s)",
+    )
+    parser.add_argument(
+        "--fig2-out",
+        default="fig_real/fig_noncausal_cleanup.png",
+        help="Figure 2 output path (relative to paper/ or absolute)",
+    )
+    parser.add_argument("--skip-fig2-noncausal", action="store_true", help="Skip Figure 2 non-causal cleanup generation")
     return parser.parse_args()
 
 
@@ -345,6 +462,22 @@ if __name__ == "__main__":
 
     if args.only_fig1_real:
         sys.exit(0)
+
+    if not args.skip_fig2_noncausal:
+        fig2_noncausal_cleanup(
+            dataset_root=args.dataset_root,
+            subject=args.subject,
+            session=args.session,
+            run=args.run,
+            start_sec=args.fig1_start_sec,
+            duration_sec=args.fig1_duration_sec,
+            eeg2_index=args.fig1_eeg2_index,
+            ecg_index=args.fig1_ecg_index,
+            highpass_hz=args.fig1_highpass_hz,
+            notch_hz=args.fig1_notch_hz,
+            full_dur_sec=args.fig2_full_dur_sec,
+            out_path=args.fig2_out,
+        )
 
     t, y, s, d, r, est, results = run_pipeline()
     fig1_convergence_spectrum(t, y, s, results, FS)
