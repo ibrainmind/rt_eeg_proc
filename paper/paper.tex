@@ -121,7 +121,11 @@ Assumption 1. In ear-EEG, CFA is dominated by the repetitive component $d_r(t)$.
 phase-asynchronous disturbances and other channel noise are represented by $n(t)$, and $n(t)$ is 
 assumed zero-mean white noise. DC offset and slow drift are removed by preprocessing.
 
-Assumption 2. In the repetitive disturbance rejection and iterative learning estimator below, R-peaks 
+Assumption 2. The beat period $T_k$ is slowly varying, dominated by respiratory sinus arrhythmia 
+(RSA), with additional small modulation from low-level muscle/motion effects in resting-state 
+recordings.
+
+Assumption 3. In the repetitive disturbance rejection and iterative learning estimator below, R-peaks 
 are assumed to be accurately detected and phase-locked. A robust min/max-envelope PI tracker used for 
 that locking is provided in the next section.
 
@@ -182,9 +186,11 @@ beat period by $\hat{T}_k=\hat{t}_{k+1}-\hat{t}_k$, and estimated phase by
 \end{equation}
 The next section addresses this timing-estimation problem with a min/max-envelope PI tracker.
 
-Assumption 3. The period is slowly varying with heartbeat rhythm, i.e., with the R-peak interval 
-$T_k$. The dominant time variation is due to respiratory sinus arrhythmia (RSA), with additional 
-small modulation from low-level muscle/motion effects in resting-state recordings.
+Note 4. Since $T_k$ is slowly varying (Assumption 2), $\hat{T}_k$ can be reliably predicted 
+between successive R-peaks. The PI tracker operates as a phase-locked loop (PLL): it uses 
+detected R-peak fiducials to correct the instantaneous rate estimate and advances phase 
+continuously between beats, so that $\hat{\phi}(t)$ remains well-defined even in real-time 
+causal operation where the next R-peak has not yet been observed.
 
 % ===========================================================================
 \section{Repetitive Disturbance Rejection}
