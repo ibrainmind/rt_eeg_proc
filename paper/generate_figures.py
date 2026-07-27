@@ -1,21 +1,38 @@
 #!/usr/bin/env python3
 """
-generate_figures.py -- regenerate Fig. 1 and Fig. 2 of the ICASSP paper as
-vector PDFs, ready to \\includegraphics in LaTeX.
+generate_figures.py -- regenerate paper figures from code.
+
+Figure mapping (paper labels):
+- Figure 1 (`fig:real_aligned3beats`): real aligned ECG/EEG segment from ds005873.
+- Figure 4 (`fig:conv`): semi-synthetic convergence and spectrum.
+- Figure 5 (`fig:time`): semi-synthetic time-domain cleanup.
+- Table 1 (`tab:results`): generated semi-synthetic SNR summary.
 
 Requires src/ekg_ilc_rt.py (the reference implementation of the synthesis:
 signal generation, phase estimator, ILC/repetitive canceller, NRLS residual)
 to be importable from this repository.
 
 Usage:
-    python generate_figures.py
+    # Regenerate all manuscript assets (Figure 1 + synthetic figures + table)
+    python paper/generate_figures.py
+
+    # Generate only Figure 1 from real dataset segment
+    python paper/generate_figures.py --only-fig1-real \
+      --dataset-root datasets/ds005873 --subject sub-001 --session ses-01 --run 01 \
+      --fig1-start-sec 64 --fig1-duration-sec 2.5 --fig1-highpass-hz 0.5 --fig1-notch-hz 50
+
+    # Synthetic figures/table only (skip real-data Figure 1)
+    python paper/generate_figures.py --skip-fig1-real
 Produces:
+    fig_real/fig_real_aligned_3beats.png
     fig1_convergence_spectrum.pdf
     fig2_timedomain.pdf
     tab_results_generated.tex
 """
+import argparse
 import os
 import sys
+from pathlib import Path
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -29,6 +46,7 @@ if SRC_DIR not in sys.path:
     sys.path.insert(0, SRC_DIR)
 
 import ekg_ilc_rt as C
+import process_data as P
 
 plt.rcParams.update({
     "font.family": "serif",
@@ -175,6 +193,131 @@ def fig2_timedomain(t, y, s, d, r, est, results, fs):
     plt.close(fig)
 
 
+def fig1_real_aligned(
+    dataset_root: str,
+    subject: str,
+    session: str,
+    run: str,
+    start_sec: float,
+    duration_sec: float,
+    eeg1_index: int,
+    eeg2_index: int,
+    ecg_index: int,
+    highpass_hz: float,
+    notch_hz: float,
+    out_path: str,
+) -> None:
+    """Generate Figure 1: short aligned real ECG/EEG segment from ds005873."""
+    ds_path = dataset_root
+    if not os.path.isabs(ds_path):
+        ds_path = os.path.join(REPO_ROOT, ds_path)
+
+    t, eeg1, eeg2, ecg, fs, fig_label, eeg1_name, eeg2_name, ecg_name = P.load_aligned_real_segment(
+        dataset_root=Path(os.path.abspath(ds_path)),
+        subject=subject,
+        session=session,
+        run=run,
+        pull=True,
+        eeg_indices=(eeg1_index, eeg2_index),
+        ecg_index=ecg_index,
+        start_sec=start_sec,
+        duration_sec=duration_sec,
+        highpass_hz=highpass_hz,
+        notch_hz=notch_hz,
+    )
+
+    # Run the phase tracker on a padded interval to avoid edge effects in short windows.
+    pad_sec = 6.0
+    t_pad, _, _, ecg_pad, _, _, _, _, _ = P.load_aligned_real_segment(
+        dataset_root=Path(os.path.abspath(ds_path)),
+        subject=subject,
+        session=session,
+        run=run,
+        pull=True,
+        eeg_indices=(eeg1_index, eeg2_index),
+        ecg_index=ecg_index,
+        start_sec=max(0.0, start_sec - pad_sec),
+        duration_sec=duration_sec + 2.0 * pad_sec,
+        highpass_hz=highpass_hz,
+        notch_hz=notch_hz,
+    )
+    est = C.phase_estimator(ecg_pad, fs, use_pll=True, use_override=True)
+    fid_idx_pad = np.array([int(fid) for fid, _, _ in est.get("fids", [])], dtype=int)
+    fid_idx_pad = fid_idx_pad[(fid_idx_pad >= 0) & (fid_idx_pad < len(t_pad))]
+    r_times_all = t_pad[fid_idx_pad] if fid_idx_pad.size > 0 else np.array([], dtype=float)
+    r_times = r_times_all[(r_times_all >= t[0]) & (r_times_all <= t[-1])]
+
+    shade_half_width = 0.06
+    fig, axes = plt.subplots(3, 1, figsize=(7.2, 4.8), sharex=True)
+
+    # Top subplot: ECG/EKG with detected R-peaks.
+    axes[0].plot(t, ecg, lw=0.9, color="C3", label=ecg_name)
+    if r_times.size > 0:
+        r_vals = np.interp(r_times, t, ecg)
+        axes[0].scatter(r_times, r_vals, s=14, color="k", zorder=4, label="R peaks")
+    axes[0].set_ylabel("V")
+    axes[0].set_title("ECG/EKG")
+    axes[0].grid(alpha=0.25)
+    axes[0].legend(loc="upper right")
+
+    # Middle and bottom subplots: EEG channels.
+    axes[1].plot(t, eeg1, lw=0.8, color="C0")
+    axes[1].set_ylabel("V")
+    axes[1].set_title(f"EEG 1: {eeg1_name}")
+    axes[1].grid(alpha=0.25)
+
+    axes[2].plot(t, eeg2, lw=0.8, color="C1")
+    axes[2].set_ylabel("V")
+    axes[2].set_title(f"EEG 2: {eeg2_name}")
+    axes[2].set_xlabel("Time (s)")
+    axes[2].grid(alpha=0.25)
+
+    # Highlight R-peak neighborhoods on all three subplots.
+    for ax in axes:
+        for rt in r_times:
+            ax.axvspan(rt - shade_half_width, rt + shade_half_width, color="C1", alpha=0.10, lw=0)
+        for rt in r_times:
+            ax.axvline(rt, color="0.45", lw=0.7, ls="--", alpha=0.55)
+
+    fig.suptitle(
+        "EAR-EEG cardiac arfifacts from SeizeIT2 openneuro dataset",
+        fontsize=12,
+        y=0.98,
+    )
+    plt.tight_layout(rect=[0, 0, 1, 0.975])
+
+    out_abs = out_path
+    if not os.path.isabs(out_abs):
+        out_abs = os.path.join(THIS_DIR, out_abs)
+    os.makedirs(os.path.dirname(out_abs), exist_ok=True)
+    plt.savefig(out_abs, dpi=150)
+    plt.close(fig)
+    print(f"wrote Figure 1: {out_abs}")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Regenerate manuscript figures.")
+    parser.add_argument("--dataset-root", default="datasets/ds005873", help="Dataset root path")
+    parser.add_argument("--subject", default="sub-001", help="Subject ID")
+    parser.add_argument("--session", default="ses-01", help="Session ID")
+    parser.add_argument("--run", default="01", help="Run ID")
+    parser.add_argument("--fig1-start-sec", type=float, default=64.0, help="Figure 1 start time (s)")
+    parser.add_argument("--fig1-duration-sec", type=float, default=2.5, help="Figure 1 duration (s)")
+    parser.add_argument("--fig1-eeg1-index", type=int, default=0, help="Figure 1 EEG index #1")
+    parser.add_argument("--fig1-eeg2-index", type=int, default=1, help="Figure 1 EEG index #2")
+    parser.add_argument("--fig1-ecg-index", type=int, default=0, help="Figure 1 ECG index")
+    parser.add_argument("--fig1-highpass-hz", type=float, default=0.5, help="Figure 1 EEG high-pass (Hz)")
+    parser.add_argument("--fig1-notch-hz", type=float, default=50.0, help="Figure 1 EEG notch (Hz)")
+    parser.add_argument(
+        "--fig1-out",
+        default="fig_real/fig_real_aligned_3beats.png",
+        help="Figure 1 output path (relative to paper/ or absolute)",
+    )
+    parser.add_argument("--skip-fig1-real", action="store_true", help="Skip Figure 1 real-data generation")
+    parser.add_argument("--only-fig1-real", action="store_true", help="Generate only Figure 1")
+    return parser.parse_args()
+
+
 def print_summary_table(summary_rows):
     print("Method summary (steady-state SNR):")
     for method, latency, snr in summary_rows:
@@ -182,6 +325,27 @@ def print_summary_table(summary_rows):
 
 
 if __name__ == "__main__":
+    args = parse_args()
+
+    if not args.skip_fig1_real:
+        fig1_real_aligned(
+            dataset_root=args.dataset_root,
+            subject=args.subject,
+            session=args.session,
+            run=args.run,
+            start_sec=args.fig1_start_sec,
+            duration_sec=args.fig1_duration_sec,
+            eeg1_index=args.fig1_eeg1_index,
+            eeg2_index=args.fig1_eeg2_index,
+            ecg_index=args.fig1_ecg_index,
+            highpass_hz=args.fig1_highpass_hz,
+            notch_hz=args.fig1_notch_hz,
+            out_path=args.fig1_out,
+        )
+
+    if args.only_fig1_real:
+        sys.exit(0)
+
     t, y, s, d, r, est, results = run_pipeline()
     fig1_convergence_spectrum(t, y, s, results, FS)
     fig2_timedomain(t, y, s, d, r, est, results, FS)

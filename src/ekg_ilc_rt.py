@@ -546,7 +546,7 @@ def plot_pass_loss_timevarying(tc, loss_db, coh_band, band_lo, band_hi, out=None
 def plot_pass_loss_beatsync(tc, loss_db, coh_band, band_lo, band_hi, out=None, show=False, close=True):
     fig, ax1 = plt.subplots(figsize=(11, 4.5))
     ax1.plot(tc, loss_db, color="C0", lw=1.5, label="beat-synchronous pass loss (dB)")
-    ax1.set_title(f"Figure 3: Beat-synchronous EKG->EEG pass loss ({band_lo:.1f}-{band_hi:.1f} Hz)")
+    ax1.set_title(f"Beat-synchronous EKG->EEG pass loss ({band_lo:.1f}-{band_hi:.1f} Hz)")
     ax1.set_xlabel("Time (s)")
     ax1.set_ylabel("Pass loss (dB)")
     ax1.grid(alpha=0.3)

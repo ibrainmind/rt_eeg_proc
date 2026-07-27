@@ -272,6 +272,87 @@ def load_passloss_real_inputs(
     return t, eeg_vals, ecg_vals, fs, label
 
 
+def load_aligned_real_segment(
+    dataset_root: Path,
+    subject: str = "sub-001",
+    session: str = "ses-01",
+    run: str = "01",
+    pull: bool = True,
+    eeg_indices: Tuple[int, int] = (0, 1),
+    ecg_index: int = 0,
+    start_sec: float = 0.0,
+    duration_sec: float | None = 2.5,
+    highpass_hz: float | None = 0.5,
+    notch_hz: float | None = 50.0,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float, str, str, str, str]:
+    """Load a short, aligned real-data segment (2 EEG + 1 ECG) for paper figures.
+
+    Returns:
+        (t, eeg1, eeg2, ecg, fs, figure_label, eeg1_name, eeg2_name, ecg_name)
+    where EEG traces are preprocessed by MNE high-pass/notch filters.
+    """
+    run_data = load_run_data(
+        dataset_root=dataset_root,
+        subject=subject,
+        session=session,
+        run=run,
+        pull=pull,
+    )
+
+    e1_idx, e2_idx = int(eeg_indices[0]), int(eeg_indices[1])
+    if not (0 <= e1_idx < len(run_data.eeg)):
+        raise IndexError(f"eeg_indices[0] out of range: {e1_idx}, available={len(run_data.eeg)}")
+    if not (0 <= e2_idx < len(run_data.eeg)):
+        raise IndexError(f"eeg_indices[1] out of range: {e2_idx}, available={len(run_data.eeg)}")
+    if not (0 <= ecg_index < len(run_data.ecg)):
+        raise IndexError(f"ecg_index out of range: {ecg_index}, available={len(run_data.ecg)}")
+
+    eeg1_trace = run_data.eeg[e1_idx]
+    eeg2_trace = run_data.eeg[e2_idx]
+    ecg_trace = run_data.ecg[ecg_index]
+
+    fs = float(ecg_trace.fs)
+    max_dur = min(
+        len(eeg1_trace.values) / eeg1_trace.fs,
+        len(eeg2_trace.values) / eeg2_trace.fs,
+        len(ecg_trace.values) / ecg_trace.fs,
+    )
+    n_out = max(2, int(np.floor(max_dur * fs)))
+
+    def _to_fs(vals: np.ndarray, fs_in: float) -> np.ndarray:
+        if fs_in == fs:
+            return np.asarray(vals[:n_out], dtype=float)
+        return _resample_linear(np.asarray(vals, dtype=float), fs_in, fs, n_out)
+
+    eeg1 = _to_fs(eeg1_trace.values, float(eeg1_trace.fs))
+    eeg2 = _to_fs(eeg2_trace.values, float(eeg2_trace.fs))
+    ecg = _to_fs(ecg_trace.values, float(ecg_trace.fs))
+
+    # Apply visual preprocessing to EEG only (as used in the paper Figure 1 text).
+    eeg1 = _mne_preprocess_trace(eeg1, fs, highpass_hz=highpass_hz, notch_hz=notch_hz)
+    eeg2 = _mne_preprocess_trace(eeg2, fs, highpass_hz=highpass_hz, notch_hz=notch_hz)
+
+    t = _time_axis(n_out, fs)
+    start = max(0.0, float(start_sec))
+    end = t[-1] if duration_sec is None else min(t[-1], start + max(0.0, float(duration_sec)))
+    if end <= start:
+        raise ValueError(f"Invalid time window start={start} end={end}")
+    m = (t >= start) & (t <= end)
+
+    figure_label = f"{dataset_root.name} | {subject} | {session} | run-{run}"
+    return (
+        t[m],
+        eeg1[m],
+        eeg2[m],
+        ecg[m],
+        fs,
+        figure_label,
+        eeg1_trace.name,
+        eeg2_trace.name,
+        ecg_trace.name,
+    )
+
+
 def run_real_passloss(
     dataset_root: Path,
     subject: str,

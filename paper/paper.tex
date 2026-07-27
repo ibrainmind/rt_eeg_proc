@@ -17,192 +17,180 @@
 
 \begin{document}
 
-\title{Real-Time Cardiac Friedl Artifact Removal in Ear-EEG Using Heart-Beat Timing-Based Iterative Learning Control}
+\title{Cardiac Field Artifact Removal in Ear-EEG Using Repetitive Disturbance Rejection}
 
 \author{
 Wenlin Zhang$^{1}$, Sam Lin$^{1,6}$, Shuai Li$^{3}$, Ye Yuan$^{1}$,\\
 Zheng Wang$^{1,2}$, Tony Ni$^{4}$, Kant Yao$^{4}$, Yongcheng Li$^{5}$, Davide Momi$^{7}$%
 \thanks{\footnotesize
-$^{1}$Institute of Brain and Mind, CA, USA\protect\\
-$^{2}$Krembil Centre for Neuroinformatics, Centre for Addiction and Mental Health, Toronto, Ontario, Canada\protect\\
-$^{3}$University of Oulu, Oulu, Finland\protect\\
-$^{4}$Synchroni Scientific Instruments Inc., Canada\protect\\
-$^{5}$Shenzhen Institutes of Advanced Technology, China\protect\\
-$^{6}$Palos Verdes Peninsula High School, CA, USA\protect\\
-$^{7}$University of California, Irvine, CA, USA\protect\\
-\textit{Corresponding author: [Name] (e-mail: [corresponding.author@institute.edu]).}
+Affiliations: $^{1}$Institute of Brain and Mind, CA, USA; $^{2}$Krembil Centre for Neuroinformatics, 
+Centre for Addiction and Mental Health, Toronto, Ontario, Canada;
+ $^{3}$University of Oulu, Oulu, Finland; $^{4}$Synchroni Scientific Instruments Inc., Canada; 
+ $^{5}$Shenzhen Institutes of Advanced Technology, China;
+  $^{6}$Palos Verdes Peninsula High School, CA, USA; $^{7}$University of California, Irvine, CA, USA. 
+  \textit{Corresponding author: Wenlin Zhang (e-mail: william@ibmind.org).}
 }
 }
 
 \maketitle
 
 \begin{abstract}
-Continuous wearable EEG is increasingly paired with consumer wearables that already provide a 
-heartbeat stream (e.g., smartwatch ECG/PPG). This creates a practical opportunity for 
-reference-driven cardiac artifact removal in low-channel ear-EEG, where blind source separation is 
-often channel-starved. We present a real-time method centered on heartbeat timing and iterative 
-learning control (ILC). A two-level (min/max) envelope tracker with a PI/PID phase-locked tracker 
-produces robust beat timing and continuous cardiac phase under amplitude drift and moderate rhythm 
-variation. Phase-aligned ILC then learns and subtracts the repeatable per-beat artifact template. We 
-analyze three deployment modes: non-causal (offline upper bound), buffered causal (one-beat latency), 
-and strict real-time causal (zero additional latency). The method is evaluated on semi-synthetic and 
-real ear-EEG scenarios with preserved neural rhythm content. As comparison baselines, we include 
-linear adaptive cancellers (including RLS/optimal-RLS style filters), plus EKF and low-channel ICA. 
-Results show that heartbeat-timing-anchored ILC provides strong artifact suppression with low 
-compute cost and favorable suitability for always-on wearable execution.
+Continuous wearable EEG is increasingly paired with consumer wearables that provide a 
+heartbeat stream (e.g., smartwatch ECG/PPG). Taking the available ECG/heartbeat reference, we propose a 
+repetitive-control framework that models cardiac artifact as a heartbeat-aligned periodic 
+disturbance. Each EEG sample is assigned a cardiac phase index wrapped around ECG R-peaks; 
+phase-synchronous averaging then preserves heartbeat-correlated residue while attenuating 
+non-phase-locked noise. Subtracting this phase-indexed average yields effective artifact removal in 
+the non-causal offline setting. For online real-time operation, an iterative-learning estimator is 
+used to track the residue in either a same-beat predictive mode (strict causal) or a one-beat-delayed 
+mode (buffered causal). We also proposes a PI based phase tracker for robust heartbeat timing estimation
+from raw EKG waveforms to account for breathe related heart rate variability or immature beats rejection.
+ Results on open datasets and semi-synthetic simulations show that the 
+heartbeat-timing-anchored repetitive/iterative learning approach provides strong artifact suppression 
+at low compute cost, making it well suited to always-on wearable execution, where blind source 
+separation is typically channel-starved.
 \end{abstract}
-
-\begin{IEEEkeywords}
-Ear-EEG, cardiac field artifact, adaptive noise cancellation, iterative learning control, 
-repetitive control, phase-locked loop, smartwatch, real-time, wearable.
-\end{IEEEkeywords}
 
 % ===========================================================================
 \section{Introduction}
 
-Wearable EEG is moving toward continuous, day-scale monitoring, and many users already wear devices 
-that expose heartbeat timing from ECG or PPG streams. This motivates a practical multimodal path: 
-use smartwatch-provided heartbeat timing to stabilize artifact removal in low-channel ear-EEG. In 
-ear-centered montages, cardiac field artifact (CFA) can dominate because electrodes are close to 
-the neck and large-vessel pathways. CFA is the volume-conducted electrical potential of the 
-heart's dipole \cite{dirlich1997}; it is distinct from MR-related ballistocardiogram (BCG) motion 
-artifact \cite{allen1998,allen2000,niazy2005}. For out-of-scanner earables, CFA is therefore the 
-primary cardiac contamination target.
+Wearable EEG is moving toward continuous, day-scale monitoring, and many users already wear a second 
+device that provides heartbeat timing from ECG or PPG. This creates a practical path for low-channel 
+ear-EEG denoising: use heartbeat timing already available from the wearable ecosystem rather than 
+requiring additional EEG channels. In ear-centered montages, cardiac field artifact (CFA) is often 
+prominent because electrodes are close to neck and vascular pathways. CFA is the volume-conducted 
+electrical field of the heart \cite{dirlich1997}, distinct from the scanner-related 
+ballistocardiogram artifact emphasized in EEG-fMRI work \cite{niazy2005}. For out-of-
+scanner earables, CFA is therefore a primary contamination mechanism.
 
-Classical adaptive cancellation with an ECG reference is well established \cite{widrow1975}, but 
-in low-channel wearable conditions its performance is sensitive to nonstationarity, reference 
-mismatch, and beat-to-beat variability. We therefore frame the problem as heartbeat-timed 
-periodic-disturbance rejection. Our central design is intentionally simple and edge oriented: 
-(i) a robust phase/timing front end using a two-level min/max envelope tracker plus PI/PID 
-phase tracking, and (ii) a phase-aligned ILC template canceller that explicitly exploits 
-beat-locked repeatability.
+Classical ECG-referenced adaptive cancellation is well established \cite{widrow1975}, and it is a 
+natural baseline. However, in our target regime it faces two practical limits: earables are 
+channel-starved for blind source separation \cite{jung2000}, and reference-to-artifact
+waveform predictability can be weak under real volume-conduction mismatch and nonstationarity. Our 
+real-data observations in this paper (Fig.~\ref{fig:real_aligned3beats}) support exactly this 
+point: coherence between ECG and ear-EEG 
+artifact is close to zero even with beat-synchronous pooling, so reference-driven waveform regression 
+is limited as a primary mechanism. At the same time, beat timing remains highly informative, because 
+the artifact is still phase-locked to R-peaks.
 
-This paper focuses on three operating modes relevant to deployment constraints: non-causal ILC as an 
-offline upper bound, buffered causal ILC with one-beat latency, and strict real-time causal ILC with 
-no added beat latency. We provide complexity and behavior analysis across these modes and evaluate 
-against standard baselines, including linear RLS (and optimal-RLS style settings), EKF, and 
-low-channel ICA.
+\begin{figure}[!b]
+\centering
+\includegraphics[width=\linewidth]{fig_real/fig_real_aligned_3beats.png}
+\caption{Short aligned segment from SeizeIT2 (ds005873, sub-001, ses-01, run-01), showing chest 
+ECG/EKG and two ear-EEG channels over about three heartbeats. R-peak neighborhoods are highlighted 
+to emphasize heartbeat-locked contamination timing. For this panel, MNE preprocessing is applied to 
+EEG channels only: 50~Hz notch plus 0.5~Hz high-pass (DC-removal) filtering.}
+\label{fig:real_aligned3beats}
+\end{figure}
 
-% ===========================================================================
-\section{Related Work}
+This motivates a timing-only control view: model cardiac contamination as a repetitive disturbance and 
+reject it by heartbeat phase indexing. Repetitive control and iterative learning control (ILC) are 
+mature tools for periodic disturbance rejection in mechatronics \cite{hara1988}, 
+and they map naturally to the heartbeat cycle when robust R-peak timing is available. We therefore 
+use a min/max envelope tracker with PI/PID phase tracking and arrhythmia-aware supervision to produce 
+stable beat timing, then apply phase-aligned template learning/cancellation in three deployment modes: 
+non-causal offline, buffered causal (one-beat latency), and strict real-time causal (zero added 
+latency).
 
-LMS/NLMS/RLS cancellation with an ECG reference is textbook 
-\cite{widrow1975,haykin2014,sayed2008,diniz2013}. Its residuals arise from channel-specific volume 
-conduction, scalp-versus-chest QRS morphology mismatch, and nonstationarity with posture and 
-heart-rate variability; a scalar linear filter captures only the linear time-invariant component. 
-Average artifact subtraction and the optimal-basis-set (OBS) refinement were developed for the BCG 
-artifact in EEG-fMRI \cite{allen1998,allen2000,niazy2005}. Once epochs are QRS-aligned the 
-machinery ports to CFA; we adopt the repeatable-template idea within a control framework. ICA 
-\cite{jung2000} with automated labeling \cite{pion2019} and artifact subspace reconstruction (ASR) 
-\cite{mullen2015} are standard for multichannel wearable EEG, but ICA identifiability degrades as 
-the channel count approaches the source count, and fails for single-/low-channel 
-montages---precisely the earable regime---motivating a reference-driven method. Deep denoisers and 
-benchmarks (e.g., EEGdenoiseNet \cite{zhang2021}) target chiefly ocular and muscular artifacts, 
-with cardiac artifact under-represented; they are also costly for always-on edge use. Algorithm 
-unrolling \cite{gregor2010,monga2021} offers a route from an iterative estimator to a low-power 
-fixed-graph network, which our synthesis is compatible with. Rejection of periodic exogenous 
-disturbances is the province of repetitive control, grounded in the internal model principle 
-\cite{francis1976,hara1988,longman2000}, and of ILC for repeating trials 
-\cite{arimoto1984,bristow2006}. These frameworks are standard in mechatronics but essentially 
-absent from EEG artifact removal; reframing CFA as periodic-disturbance rejection with heartbeat 
-phase as reference is a central move of this work.
+The resulting contribution is a compact, wearable-oriented CFA removal scheme aligned with realistic 
+device constraints: low channel count, low compute budget, and timing references that may come from a 
+separate wearable. We evaluate the design on open real recordings and semi-synthetic data, compare 
+against linear RLS-based and ICA baselines, and quantify the latency-versus-suppression tradeoff 
+between non-causal, buffered, and strict-causal operation.
 
 % ===========================================================================
-\section{Contributions and Novelty}
+\section{Problem Formulation}
 
-Control-theoretic disturbance rejection is mature and production-proven: iterative learning control 
-(ILC) and repetitive control reject periodic disturbances in hard-disk-drive servos, power 
-converters, and robotic manipulators 
-\cite{arimoto1984,bristow2006,hara1988,longman2000,francis1976}. These schemes are prized in 
-industry for being cheap, deterministic, and production-oriented. Biosignal denoising, by contrast, 
-has been dominated by statistical decomposition (ICA) and, recently, data-hungry deep networks. This 
-paper adapts a lightweight repetitive-disturbance rejection view to EEG artifact removal with 
-heartbeat timing as the key synchronizing signal.
-
-Our specific contributions are: \textbf{C1)} a control-theoretic synthesis---streaming phase 
-estimator and phase-aligned ILC template canceller---for real-time CFA removal in low-channel 
-($C<8$) ear-EEG; \textbf{C2)} a streaming heartbeat phase estimator combining a two-level (min/max) 
-envelope tracker with PI/PID phase tracking and arrhythmia-aware supervision, yielding robust timing 
-anchors for template learning; \textbf{C3)} a unified analysis of non-causal, buffered-causal, and 
-strict-causal ILC operation, clarifying the latency-versus-suppression tradeoff set by RR 
-predictability; and \textbf{C4)} a per-sample complexity analysis and comparative evaluation against 
-linear adaptive baselines (including RLS/optimal-RLS), EKF, and low-channel ICA.
-
-Transplanting these tools is not mechanical; biosignals raise challenges absent in mechatronics. 
-\textbf{(i)} The disturbance ``trial'' has no index pulse and a nonstationary period---heart rate 
-varies continuously with respiration and activity---so phase must be estimated from a noisy 
-observable rather than read from an encoder. \textbf{(ii)} The repeatable disturbance is only 
-approximately repeatable: beat morphology drifts and arrhythmias inject outliers, requiring a 
-supervisory layer atop the linear loop. \textbf{(iii)} The reference may be noisy and acquired on a 
-separate device (e.g., a wrist ECG/PPG), threatening sample alignment. 
-\textbf{(iv)} The disturbance overlaps the signal of interest in time and spectrum---the 
-heartbeat-evoked potential is itself heart-locked---so over-subtraction can destroy neural signal. 
-\textbf{(v)} Validation lacks ground truth and must contend with low SNR and few channels. The 
-proposed design addresses (i)--(iv) explicitly and evaluates (v) via a semi-synthetic protocol.
-
-% ===========================================================================
-\section{Signal Model and Problem Formulation}
-
-\textbf{Notation.} All quantities are written with plain, meaningful Latin letters. Signals: $y(t)$ 
-measured EEG channel; $s(t)$ true neural signal (desired); $d(t)$ cardiac disturbance (artifact); 
-$n(t)$ channel noise; $r(t)$ ECG reference measurement; $u(t)$ underlying cardiac electrical 
-source; $v(t)$ reference-sensor noise. Operators: $H\{\cdot\}$ the linear volume-conduction 
-channel, with impulse-response taps $h[m]$. Timing: $t_k$ the $k$-th R-peak instant; 
-$\mathrm{RR}_k = t_{k+1}-t_k$ the $k$-th RR interval; $p(t)\in[0,1)$ the cardiac phase.
-
-The measured EEG channel and the ECG reference are
-\begin{align}
-y(t) &= s(t) + d(t) + n(t), \label{eq:meas}\\
-r(t) &= u(t) + v(t). \label{eq:ref}
-\end{align}
-Systole (QRST) is approximately time-locked to the R-peak while diastole absorbs the RR variation, 
-so we anchor a repeatable component in time-since-R and treat the remainder as drift,
+Following repetitive-control modeling conventions \cite{hara1988,longman2000}, we model 
+the measured ear-EEG signal as
 \begin{equation}
-d(t) = d_p(t - t_k) + d_r(t),
-\label{eq:decomp}
+y(t) = s(t) + d_r(t) + n(t),
+\label{eq:meas}
 \end{equation}
-where $d_p$ is addressable by repetitive/ILC methods once the phase $p(t)$ (equivalently the most 
-recent R-instant $t_k$) is known. In this paper, the proposed method targets $d_p$ directly with 
-phase-aligned ILC, while residual adaptive filters are treated as external baselines for comparison.
+where $s(t)$ is the neural signal of interest, $d_r(t)$ is the heartbeat-synchronous repetitive 
+cardiac disturbance, and $n(t)$ aggregates asynchronous interference and sensor noise. The subscript 
+$r$ denotes the repetitive nature of the disturbance. Its period is heartbeat dependent and is set by 
+ECG R-peak timing, with beat interval
+\begin{equation}
+T_k = t_{k+1} - t_k,
+\label{eq:Tk}
+\end{equation}
+where $t_k$ is the $k$-th detected R-peak instant.
+
+Assumption 1. In ear-EEG, CFA is dominated by the repetitive component $d_r(t)$. R-peak 
+phase-asynchronous disturbances and other channel noise are represented by $n(t)$, and $n(t)$ is 
+assumed zero-mean white noise. DC offset and slow drift are removed by preprocessing.
+
+Assumption 2. In the repetitive disturbance rejection and iterative learning estimator below, R-peaks 
+are assumed to be accurately detected and phase-locked. A robust min/max-envelope PI tracker used for 
+that locking is provided in the next section.
+
+Using heartbeat phase, we represent the repetitive disturbance as a phase-indexed waveform
+\begin{equation}
+d_r(t) = d_r\!\left(\phi(t)\right), \qquad
+\phi(t) = \frac{t - t_k}{T_k}, \quad t \in [t_k, t_{k+1}),
+\label{eq:phase_model}
+\end{equation}
+with $\phi(t)\in[0,1)$ the R-peak-aligned cardiac phase. 
+Equivalently, within each beat interval the disturbance is periodic in local time with period $T_k$, 
+while $T_k$ itself evolves slowly across beats.
+Here $t$ denotes the discrete-time index governed by the EEG sampling rate, and we assume the ECG 
+reference is sampled at the same rate as EEG.
+
+Problem 1. Finding the optimal estimate of the repetitive template $\hat{d}_r$. We assign each 
+phase-aligned EEG sample a periodic phase index $\phi_p$ over an R-peak-centered template window,
+\begin{subequations}
+\begin{gather}
+\hat{d}_r(\phi_p) = \frac{1}{N_r}\sum_{k=1}^{N_r} y_k(\phi_p),
+\label{eq:drhat}\\
+p = -n_{\mathrm{pre}},\,\ldots,\,-1,\,0,\,1,\,\ldots,\,n_{\mathrm{post}},
+\label{eq:phase_index_set}\\
+n_t = n_{\mathrm{pre}} + n_{\mathrm{post}},
+\label{eq:Np_def}
+\end{gather}
+\end{subequations}
+where $n_t$ denotes the template-window length tied to the sampling rate, $N_r$ is the number of 
+R-peaks over the recording session, and $y_k(\phi_p)$ is the phase-aligned EEG sample at phase index $\phi_p$ 
+from beat $k$; $p=0$ is aligned with the R-peak. Stacking $\hat{d}_r(\phi_p)$ over all $p$ yields a continuous template carried across 
+all beats in the recording. The corresponding subtraction for all same-phase-synchronized EEG 
+samples is
+\begin{equation}
+\hat{s}(t) = y(t) - \hat{d}_r\!\left(\hat{\phi}(t)\right).
+\label{eq:cancel_phaseavg}
+\end{equation}
+
+Note 1. Eq.~\eqref{eq:drhat} is the non-causal phase-synchronized averaging estimate over 
+the full recording, and the resulting template is used for subtraction in 
+Eq.~\eqref{eq:cancel_phaseavg}.
+
+Note 2. Based on Assumption 1, in the Eq.~\eqref{eq:drhat} estimate, $n(t)$ is rendered 
+toward zero as the sample mean of zero-mean white noise.
+
+Note 3. A practical guideline for choosing $n_{\mathrm{pre}}$, $n_{\mathrm{post}}$, and $n_t$: 
+set $n_{\mathrm{pre}} = \lfloor 0.05\,f_s \rfloor$ (about 50~ms before the R-peak, covering 
+QRS onset) and $n_{\mathrm{post}} = \lfloor 0.55\,f_s \rfloor$ (about 550~ms after, covering 
+the full QRS-T complex at resting heart rate), giving $n_t = n_{\mathrm{pre}} + n_{\mathrm{post}} 
+\approx 0.6\,f_s$ samples, i.e.\ 600~ms total window length. At $f_s = 250$~Hz this yields 
+$n_t = 150$ samples.
+
+Problem 2. Estimating beat timing robustly, i.e., the R-peak index $k$ and R-peak instant, so 
+that EEG samples can be phase-aligned. We denote estimated R-peaks by $\hat{t}_k$, estimated 
+beat period by $\hat{T}_k=\hat{t}_{k+1}-\hat{t}_k$, and estimated phase by
+\begin{equation}
+\hat{\phi}(t) = \frac{t-\hat{t}_k}{\hat{T}_k}, \qquad t\in[\hat{t}_k,\hat{t}_{k+1}).
+\label{eq:phi_hat}
+\end{equation}
+The next section addresses this timing-estimation problem with a min/max-envelope PI tracker.
+
+Assumption 3. The period is slowly varying with heartbeat rhythm, i.e., with the R-peak interval 
+$T_k$. The dominant time variation is due to respiratory sinus arrhythmia (RSA), with additional 
+small modulation from low-level muscle/motion effects in resting-state recordings.
 
 % ===========================================================================
-\section{Proposed Algorithm Synthesis}
-The system-level flow is: the ECG reference $r(t)$ feeds both the phase estimator and the 
-phase estimator; the phase estimator outputs $(t_k,p(t),l[k])$ anchor and gate ILC template 
-subtraction to produce the cleaned output $e(t)$. This textual block mapping corresponds directly 
-to Eqs.~(1)--(9) and is detailed in the subsections below.
-
-\subsection{ECG phase estimator: min/max tracker + PI/PID tracking}
-A QRS-emphasis band-pass feeds two streaming trackers: a peak tracker $pk(t)$ (fast attack, slow 
-release) and a baseline tracker $bl(t)$ (slow moving average). The normalized gate
-\begin{equation}
-g(t) = \frac{x(t) - bl(t)}{pk(t) - bl(t)}
-\label{eq:gate}
-\end{equation}
-is amplitude-drift invariant, so posture/contact drift does not defeat detection. A Schmitt 
-hysteresis and a 250~ms refractory yield clean beat gating; the fiducial $t_k$ is the raw-reference 
-maximum within the gated window (low jitter).
-
-A PI phase-locked loop converts sparse fiducials into a continuous phase. Between beats the phase 
-advances by the instantaneous rate estimate,
-\begin{equation}
-p(t+1) = \big[\, p(t) + \mathrm{fr}(t) \,\big] \bmod 1, \qquad \mathrm{fr}(t) = 
-\frac{1}{\mathrm{RR}_{\mathrm{est}}(t)\, f_s},
-\label{eq:phaseacc}
-\end{equation}
-where $f_s$ is the sample rate. At each fiducial, a proportional term realigns phase and an 
-integral term updates the rate estimate,
-\begin{align}
-p &\leftarrow p - K_p \, e_p, \label{eq:pcorr}\\
-\mathrm{RR}_{\mathrm{est}} &\leftarrow \mathrm{RR}_{\mathrm{est}} + K_i 
-\,(\mathrm{RR}_{\mathrm{meas}} - \mathrm{RR}_{\mathrm{est}}), \label{eq:rcorr}
-\end{align}
-with $e_p$ the wrapped phase error and $K_p,K_i$ the PI gains. The loop bandwidth is set above 
-respiratory sinus arrhythmia (RSA, $\sim$0.2--0.4~Hz) and below per-beat detection noise. An 
-arrhythmia supervisor classifies each beat by the ratio 
-$\mathrm{RR}_{\mathrm{meas}}/\mathrm{RR}_{\mathrm{est}}$ and applies the matching 
-reflex---\emph{premature}: trust the measured phase, freeze the rate and learning; \emph{missed}: 
-trust the prediction, keep the rate---protecting both the loop and the template.
+\section{Repetitive Disturbance Rejection}
+Given the phase-indexed disturbance model in Sec.~II, we perform cancellation by repetitive 
+disturbance rejection with iterative learning on heartbeat-aligned samples. The cancellation target 
+is the beat-synchronous component of CFA, while asynchronous components are left in the residual.
 
 \subsection{ILC/repetitive template cancellation}
 A template $m(o)$, indexed by time-since-R offset $o$, stores $d_p$. Cancellation is a table lookup 
@@ -256,6 +244,41 @@ from CFA, and it is only partially protected by \eqref{eq:limiter}. We report
 alpha-rhythm preservation (Sec.~VII) as an indirect check; an explicit HEP-preservation test is 
 future work.
 
+% ===========================================================================
+\section{ECG Phase Estimator}
+
+\subsection{Min/max tracker + PI/PID phase tracking}
+A QRS-emphasis band-pass feeds two streaming trackers: a peak tracker $pk(t)$ (fast attack, slow 
+release) and a baseline tracker $bl(t)$ (slow moving average). The normalized gate
+\begin{equation}
+g(t) = \frac{x(t) - bl(t)}{pk(t) - bl(t)}
+\label{eq:gate}
+\end{equation}
+is amplitude-drift invariant, so posture/contact drift does not defeat detection. A Schmitt 
+hysteresis and a 250~ms refractory yield clean beat gating; the fiducial $t_k$ is the raw-reference 
+maximum within the gated window (low jitter).
+
+A PI phase-locked loop converts sparse fiducials into a continuous phase. Between beats the phase 
+advances by the instantaneous rate estimate,
+\begin{equation}
+p(t+1) = \big[\, p(t) + \mathrm{fr}(t) \,\big] \bmod 1, \qquad \mathrm{fr}(t) = 
+\frac{1}{\mathrm{RR}_{\mathrm{est}}(t)\, f_s},
+\label{eq:phaseacc}
+\end{equation}
+where $f_s$ is the sample rate. At each fiducial, a proportional term realigns phase and an 
+integral term updates the rate estimate,
+\begin{align}
+p &\leftarrow p - K_p \, e_p, \label{eq:pcorr}\\
+\mathrm{RR}_{\mathrm{est}} &\leftarrow \mathrm{RR}_{\mathrm{est}} + K_i 
+\,(\mathrm{RR}_{\mathrm{meas}} - \mathrm{RR}_{\mathrm{est}}), \label{eq:rcorr}
+\end{align}
+with $e_p$ the wrapped phase error and $K_p,K_i$ the PI gains. The loop bandwidth is set above 
+respiratory sinus arrhythmia (RSA, $\sim$0.2--0.4~Hz) and below per-beat detection noise. An 
+arrhythmia supervisor classifies each beat by the ratio 
+$\mathrm{RR}_{\mathrm{meas}}/\mathrm{RR}_{\mathrm{est}}$ and applies the matching 
+reflex---\emph{premature}: trust the measured phase, freeze the rate and learning; \emph{missed}: 
+trust the prediction, keep the rate---protecting both the loop and the template.
+
 \subsection{Algorithm summary}
 Per sample: (1)~update trackers \eqref{eq:gate} and gate; (2)~advance phase \eqref{eq:phaseacc}, 
 correct at fiducials \eqref{eq:pcorr}--\eqref{eq:rcorr}, run the supervisor; (3)~ILC 
@@ -275,8 +298,73 @@ separately in experiments and are not part of the proposed online deployment pat
 % ===========================================================================
 \section{Experiments}
 
+\subsection{Real ear-EEG validation: coherence and repeatable-template evidence}
+\label{sec:realdata}
+To test the coherence assumption behind reference-driven cancellers and confirm that a genuine
+repeatable cardiac template exists outside simulation, we analyze a 10-minute segment (717 beats;
+2 premature, 0 missed) from the SeizeIT2 dataset \cite{seizeit2}, which pairs a wearable
+behind-the-ear EEG channel (256~Hz) with a synchronized chest ECG lead during video-EEG epilepsy
+monitoring.
+
+\emph{Coherence is near zero, even under best-case R-locked pooling.} Fig.~\ref{fig:coh}(a) shows
+magnitude-squared coherence between the ECG reference and the ear-EEG channel from long, many-average
+Welch segments across 0--60~Hz: coherence averages $6\times10^{-10}$ over 8--20~Hz and is visually
+indistinguishable from zero across the whole spectrum -- inconsistent with any stationary linear
+channel between $r(t)$ and $d(t)$. A skeptic could object that this washes out a relationship
+holding only locally around each beat; pooling short-time estimates over rolling 12-beat R-aligned
+batches (715 estimates, Fig.~\ref{fig:coh}(b)) gives the same answer -- coherence stays low and
+stable ($0.06$--$0.17$, mean $0.11$) throughout the recording, an order of magnitude below what a
+usable Hammerstein/RLS reference-driven canceller would need. Even granting the reference every
+possible timing advantage, the ear-EEG artifact waveform is not linearly predictable from the ECG
+waveform.
+
+\emph{A repeatable, R-anchored template nonetheless exists.} Coherence measures waveform
+predictability from the reference, not repeatability across beats. Non-causal ILC/synchronous
+averaging (\S IV-B) applied directly to the real ear-EEG channel (Fig.~\ref{fig:real_causal_buffered})
+recovers a clear, consistent deflection time-locked to the ECG R-peak, confirming the cardiac field
+artifact at the ear is genuinely timing-repeatable -- exactly the property ILC exploits -- even
+though it fails the coherence test above. This is the real-data analogue of synchronous-average
+disk-servo RRO/NRRO separation: only the R-peak \emph{instant} is used, never the ECG waveform shape.
+The causal-vs-buffered R-spike tradeoff is likewise real, not a simulation artifact: buffered matches
+non-causal (R-spike peak-to-peak $5.02\times10^{-5}$~V vs.\ $5.07\times10^{-5}$~V), while the causal
+template is capped by RR-prediction error to $3.47\times10^{-5}$~V, a $32\%$ reduction, consistent
+with \S IV-B. Cardiac-band (1--20~Hz) power is reduced by $0.9$/$0.8$/$0.4$~dB for
+non-causal/buffered/causal respectively; the modest magnitude versus the semi-synthetic ceiling
+(Table~\ref{tab:results}) reflects broadband physiological noise at this electrode and that only the
+beat-locked component is addressable by ILC by construction.
+
+These observations are the empirical basis for this paper's scope: a null coherence result that
+rules out a reference-driven residual stage as a primary contribution here, and a positive
+repeatability result that justifies keeping the timing-driven ILC stage. The linear RLS canceller in
+Table~\ref{tab:results} is retained only as a semi-synthetic baseline, evaluated on data explicitly
+given a known Hammerstein/volume-conduction channel between $r(t)$ and $d(t)$; it is not part of the
+proposed real-time deployment path.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig_real/fig_real_coherence_combined.png}
+\caption{Real ear-EEG/ECG coherence. (a) Whole-record Welch estimate (0--60~Hz): indistinguishable
+from zero across the spectrum. (b) Beat-synchronous estimate (8--20~Hz band), pooled over rolling
+12-beat batches across a 10-minute recording (715 estimates): coherence stays low and stable even
+under best-case R-locked alignment.}
+\label{fig:coh}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\linewidth]{fig_real/fig_real_causal_buffered.png}
+\caption{Non-causal, buffered, and strict-causal templates learned from real ear-EEG (with one ECG
+beat shown only for R-peak timing reference). A clear, repeatable R-locked deflection is recovered
+despite the near-zero coherence of Fig.~\ref{fig:coh}. Buffered matches non-causal; the causal
+(zero-latency) template's R-spike is measurably damped by RR-prediction error, confirming the
+latency/suppression tradeoff of \S IV-B on physiological data.}
+\label{fig:real_causal_buffered}
+\end{figure}
+
 \subsection{Semi-synthetic data}
-Following the semi-synthetic protocol common in EEG denoising \cite{zhang2021}, a low-CFA neural 
+The real-data evidence above has no ground truth $s(t)$, so we complement it with a semi-synthetic
+protocol that provides exact-reference SNR metrics; the ILC-driven design validated qualitatively
+above is here validated quantitatively. Following the semi-synthetic protocol common in EEG denoising \cite{zhang2021}, a low-CFA neural
 surrogate (pink noise plus an amplitude-modulated 10~Hz alpha rhythm) provides ground truth $s(t)$. 
 A synthetic ECG source $u(t)$ with RSA-modulated RR intervals is converted into a beat-locked 
 artifact template with slow amplitude and morphology drift, then added at a controlled input SNR; 
@@ -285,10 +373,11 @@ labeling. Metrics: artifact SNR (steady state), spectral cardiac-peak reduction,
 preservation.
 
 \subsection{Baselines}
-We compare against (i)~a linear RLS/LMS ECG-reference canceller 
-\cite{widrow1975,haykin2014,sayed2008}; (ii)~an EKF/state-space canceller \emph{[placeholder---to 
-be added]} \cite{sameni2007}; and (iii)~low-channel ICA \emph{[placeholder---to be added]} 
-\cite{jung2000,pion2019}, which is expected to degrade at $C<8$.
+Within the semi-synthetic protocol only (\S\ref{sec:realdata} shows why a reference-driven residual
+stage cannot contribute on the real recording), we compare against (i)~a linear RLS/LMS
+ECG-reference canceller \cite{widrow1975,haykin2014,sayed2008}; (ii)~an EKF/state-space canceller
+\emph{[placeholder---to be added]} \cite{sameni2007}; and (iii)~low-channel ICA
+\emph{[placeholder---to be added]} \cite{jung2000}, which is expected to degrade at $C<8$.
 
 \subsection{Results}
 Table~\ref{tab:results} reports steady-state artifact SNR for the main approaches, generated 
@@ -334,11 +423,17 @@ window.}
 
 % ===========================================================================
 \section{Conclusion}
-We presented a control-theoretic synthesis---min/max-tracker PI-PLL phase estimation, 
-ILC/repetitive template cancellation, and explicit non-causal/buffered/strict-causal operating 
-modes---for real-time CFA removal in low-channel ear-EEG. It exceeds linear ANC at equal latency, 
-exposes a quantified one-beat-latency vs.\ zero-latency trade-off set by RR predictability, 
-preserves the alpha rhythm, and runs at constant per-sample cost suitable for edge deployment.
+We presented a control-theoretic synthesis---min/max-tracker PI-PLL phase estimation,
+ILC/repetitive template cancellation, and explicit non-causal/buffered/strict-causal operating
+modes---for real-time CFA removal in low-channel ear-EEG. On a real behind-the-ear EEG/chest-ECG
+recording, heartbeat-locked coherence between the two is near zero even under best-case R-locked
+pooling, while R-anchored synchronous averaging still recovers a clear, repeatable template and
+reproduces the causal-vs-buffered R-spike tradeoff quantitatively -- evidence that, at least on this
+data, timing-only ILC is both necessary (reference-driven waveform regression has nothing to
+regress against) and sufficient (the artifact is genuinely timing-repeatable). On the semi-synthetic
+protocol, the method exceeds linear ANC at equal latency, exposes a quantified one-beat-latency
+vs.\ zero-latency trade-off set by RR predictability, preserves the alpha rhythm, and runs at
+constant per-sample cost suitable for edge deployment.
 
 More broadly, this work aims to bridge mature mechatronic disturbance-rejection theory and 
 biosignal denoising, opening a control-systems avenue for wearable neural interfaces. The 
@@ -356,14 +451,6 @@ realization.
 \bibitem{dirlich1997} G. Dirlich, L. Vogl, M. Plaschke, and F. Strian, ``Cardiac field effects on 
 the EEG,'' \emph{Electroencephalogr. Clin. Neurophysiol.}, vol. 102, no. 4, pp. 307--315, 1997.
 
-\bibitem{allen1998} P. J. Allen, G. Polizzi, K. Krakow, D. R. Fish, and L. Lemieux, 
-``Identification of EEG events in the MR scanner: the problem of pulse artifact and a method for 
-its subtraction,'' \emph{NeuroImage}, vol. 8, no. 3, pp. 229--239, 1998.
-
-\bibitem{allen2000} P. J. Allen, O. Josephs, and R. Turner, ``A method for removing imaging 
-artifact from continuous EEG recorded during functional MRI,'' \emph{NeuroImage}, vol. 12, no. 2, 
-pp. 230--239, 2000.
-
 \bibitem{niazy2005} R. K. Niazy, C. F. Beckmann, G. D. Iannetti, J. M. Brady, and S. M. Smith, 
 ``Removal of FMRI environment artifacts from EEG data using optimal basis sets,'' 
 \emph{NeuroImage}, vol. 28, no. 3, pp. 720--737, 2005.
@@ -375,31 +462,11 @@ applications,'' \emph{Proc. IEEE}, vol. 63, no. 12, pp. 1692--1716, 1975.
 
 \bibitem{sayed2008} A. H. Sayed, \emph{Adaptive Filters}. Wiley-IEEE Press, 2008.
 
-\bibitem{diniz2013} P. S. R. Diniz, \emph{Adaptive Filtering: Algorithms and Practical 
-Implementation}, 4th ed. Springer, 2013.
-
 \bibitem{jung2000} T.-P. Jung \emph{et al.}, ``Removing electroencephalographic artifacts by blind 
 source separation,'' \emph{Psychophysiology}, vol. 37, no. 2, pp. 163--178, 2000.
 
-\bibitem{pion2019} L. Pion-Tonachini, K. Kreutz-Delgado, and S. Makeig, ``ICLabel: an automated EEG 
-independent component classifier, dataset, and website,'' \emph{NeuroImage}, vol. 198, pp. 
-181--197, 2019.
-
-\bibitem{mullen2015} T. R. Mullen \emph{et al.}, ``Real-time neuroimaging and cognitive monitoring 
-using wearable dry EEG,'' \emph{IEEE Trans. Biomed. Eng.}, vol. 62, no. 11, pp. 2553--2567, 2015.
-
 \bibitem{zhang2021} H. Zhang \emph{et al.}, ``EEGdenoiseNet: a benchmark dataset for deep learning 
 solutions of EEG denoising,'' \emph{J. Neural Eng.}, vol. 18, no. 5, art. 056057, 2021.
-
-\bibitem{gregor2010} K. Gregor and Y. LeCun, ``Learning fast approximations of sparse coding,'' in 
-\emph{Proc. ICML}, 2010, pp. 399--406.
-
-\bibitem{monga2021} V. Monga, Y. Li, and Y. C. Eldar, ``Algorithm unrolling: interpretable, 
-efficient deep learning for signal and image processing,'' \emph{IEEE Signal Process. Mag.}, vol. 
-38, no. 2, pp. 18--44, 2021.
-
-\bibitem{francis1976} B. A. Francis and W. M. Wonham, ``The internal model principle of control 
-theory,'' \emph{Automatica}, vol. 12, no. 5, pp. 457--465, 1976.
 
 \bibitem{hara1988} S. Hara, Y. Yamamoto, T. Omata, and M. Nakano, ``Repetitive control system: a 
 new type servo system for periodic exogenous signals,'' \emph{IEEE Trans. Autom. Control}, vol. 33, 
@@ -408,29 +475,18 @@ no. 7, pp. 659--668, 1988.
 \bibitem{longman2000} R. W. Longman, ``Iterative learning control and repetitive control for 
 engineering practice,'' \emph{Int. J. Control}, vol. 73, no. 10, pp. 930--954, 2000.
 
-\bibitem{arimoto1984} S. Arimoto, S. Kawamura, and F. Miyazaki, ``Bettering operation of robots by 
-learning,'' \emph{J. Robot. Syst.}, vol. 1, no. 2, pp. 123--140, 1984.
-
-\bibitem{bristow2006} D. A. Bristow, M. Tharayil, and A. G. Alleyne, ``A survey of iterative 
-learning control,'' \emph{IEEE Control Syst. Mag.}, vol. 26, no. 3, pp. 96--114, 2006.
-
-\bibitem{liu2010} W. Liu, J. C. Pr\'{i}ncipe, and S. Haykin, \emph{Kernel Adaptive Filtering}. 
-Wiley, 2010.
-
-\bibitem{narendra1966} K. S. Narendra and P. G. Gallman, ``An iterative method for the 
-identification of nonlinear systems using a Hammerstein model,'' \emph{IEEE Trans. Autom. Control}, 
-vol. 11, no. 3, pp. 546--550, 1966.
-
-\bibitem{bai1998} E.-W. Bai, ``An optimal two-stage identification algorithm for 
-Hammerstein--Wiener nonlinear systems,'' \emph{Automatica}, vol. 34, no. 3, pp. 333--338, 1998.
-
 \bibitem{sameni2007} R. Sameni, M. B. Shamsollahi, C. Jutten, and G. D. Clifford, ``A nonlinear 
 Bayesian filtering framework for ECG denoising,'' \emph{IEEE Trans. Biomed. Eng.}, vol. 54, no. 12, 
 pp. 2172--2185, 2007.
 
-\bibitem{park2019} H.-D. Park and O. Blanke, ``Heartbeat-evoked cortical responses: mechanisms, 
-functional roles, and methodological considerations,'' \emph{NeuroImage}, vol. 197, pp. 502--511, 
+\bibitem{park2019} H.-D. Park and O. Blanke, ``Heartbeat-evoked cortical responses: mechanisms,
+functional roles, and methodological considerations,'' \emph{NeuroImage}, vol. 197, pp. 502--511,
 2019.
+
+\bibitem{seizeit2} M. Bhagubai, C. Chatzichristos, L. Swinnen \emph{et al.}, ``SeizeIT2: a
+multicentre wearable dataset of long-term behind-the-ear EEG, ECG, EMG, and movement recordings
+from patients with focal epilepsy,'' OpenNeuro dataset ds005873, v1.1.0, 2024.
+doi:10.18112/openneuro.ds005873.v1.1.0.
 
 \end{thebibliography}
 
