@@ -1,12 +1,17 @@
 \documentclass[conference]{IEEEtran}
 \usepackage{amsmath,amssymb}
+\usepackage{amsthm}
 \usepackage{graphicx}
 \usepackage{cite}
 \usepackage{booktabs}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc}
 \usepackage{url}
+\usepackage[hidelinks]{hyperref}
 \IEEEoverridecommandlockouts
+
+\newtheorem{assumption}{Assumption}[section]
+\newtheorem{noteenv}[assumption]{Note}
 
 % ---------------------------------------------------------------------------
 % NOTE ON NOTATION (not printed): every symbol is a plain Latin letter with a
@@ -21,13 +26,13 @@
 
 \author{
 Wenlin Zhang$^{1}$, Sam Lin$^{1,6}$, Shuai Li$^{3}$, Ye Yuan$^{1}$,\\
-Zheng Wang$^{1,2}$, Tony Ni$^{4}$, Kant Yao$^{4}$, Yongcheng Li$^{5}$, Davide Momi$^{7}$%
+Zheng Wang$^{1,2}$, Ziteng Ni$^{4}$, Heng Kang Yao$^{2,4}$, Yongcheng Li$^{5}$, Davide Momi$^{7}$%
 \thanks{\footnotesize
 Affiliations: $^{1}$Institute of Brain and Mind, CA, USA; $^{2}$Krembil Centre for Neuroinformatics, 
 Centre for Addiction and Mental Health, Toronto, Ontario, Canada;
  $^{3}$University of Oulu, Oulu, Finland; $^{4}$Synchroni Scientific Instruments Inc., Canada; 
  $^{5}$Shenzhen Institutes of Advanced Technology, China;
-  $^{6}$Palos Verdes Peninsula High School, CA, USA; $^{7}$University of California, Irvine, CA, USA. 
+  $^{6}$Palos Verdes Peninsula High School, CA, USA; $^{7}$University of California, Irvine, CA, USA; 
   \textit{Corresponding author: Wenlin Zhang (e-mail: william@ibmind.org).}
 }
 }
@@ -53,6 +58,7 @@ separation is typically channel-starved.
 
 % ===========================================================================
 \section{Introduction}
+\label{sec:introduction}
 
 Wearable EEG is moving toward continuous, day-scale monitoring, and many users already wear a second 
 device that provides heartbeat timing from ECG or PPG. This creates a practical path for low-channel 
@@ -100,6 +106,7 @@ between non-causal, buffered, and strict-causal operation.
 
 % ===========================================================================
 \section{Problem Formulation}
+\label{sec:problem_formulation}
 
 Following repetitive-control modeling conventions \cite{hara1988,longman2000}, we model 
 the measured ear-EEG signal as
@@ -117,17 +124,28 @@ T_k = t_{k+1} - t_k,
 \end{equation}
 where $t_k$ is the $k$-th detected R-peak instant.
 
-Assumption 1. In ear-EEG, CFA is dominated by the repetitive component $d_r(t)$. R-peak 
-phase-asynchronous disturbances and other channel noise are represented by $n(t)$, and $n(t)$ is 
-assumed zero-mean white noise. DC offset and slow drift are removed by preprocessing.
+\begin{assumption}\label{asm:cfa_dominant}
+In ear-EEG, CFA is dominated by the repetitive component $d_r(t)$. R-peak
+phase-asynchronous disturbances and sensor noise are aggregated in $n(t)$, assumed zero-mean
+and asynchronous with the R-peak. DC offset and slow drift are removed
+by preprocessing.
+\end{assumption}
 
-Assumption 2. The beat period $T_k$ is slowly varying, dominated by respiratory sinus arrhythmia 
-(RSA), with additional small modulation from low-level muscle/motion effects in resting-state 
-recordings.
+\begin{assumption}\label{asm:neural_not_phase_locked}
+The neural signal of interest $s(t)$ is not
+phase-locked to the R-peak: across beats, its phase relative to the cardiac cycle is effectively
+uniform. Consequently $s(t)$ is preserved by the proposed
+phase-synchronous repetitive runout cancellation, more detailed analysis is provided in Sec.~\ref{sec:noncausal_repetitive_rejection}.
+\end{assumption}
 
-Assumption 3. In the repetitive disturbance rejection and iterative learning estimator below, R-peaks 
-are assumed to be accurately detected and phase-locked. A robust min/max-envelope PI tracker used for 
-that locking is provided in the next section.
+\begin{assumption}\label{asm:rpeak_locking}
+In the analysis of Sec.~\ref{sec:noncausal_repetitive_rejection}, R-peaks are assumed to be accurately
+detected and phase-locked. In discrete time, the estimated R-peak instant is denoted $\hat{t}_k$, where
+the hat indicates an estimate of the $k$-th R-peak sample index rather than the true fiducial. A robust
+min/max-envelope PI tracker used for that locking is provided in Sec.~\ref{sec:ecg_phase_estimator}.
+The beat period $T_k$ is assumed slowly varying, dominated by respiratory sinus arrhythmia (RSA), with
+additional small modulation from low-level muscle/motion effects in resting-state recordings.
+\end{assumption}
 
 Using heartbeat phase, we represent the repetitive disturbance as a phase-indexed waveform
 \begin{equation}
@@ -141,41 +159,51 @@ while $T_k$ itself evolves slowly across beats.
 Here $t$ denotes the discrete-time index governed by the EEG sampling rate, and we assume the ECG 
 reference is sampled at the same rate as EEG.
 
-Problem 1. Finding the optimal estimate of the repetitive template $\hat{d}_r$. We assign each 
-phase-aligned EEG sample a periodic phase index $\phi_p$ over an R-peak-centered template window,
+On the sample grid, we write $t = t_k + p/f_s$ with integer offset $p$, so
 \begin{subequations}
 \begin{gather}
-\hat{d}_r(\phi_p) = \frac{1}{N_r}\sum_{k=1}^{N_r} y_k(\phi_p),
+\phi_p \triangleq \phi\!\left(\hat{t}_k + \frac{p}{f_s}\right) = \frac{p}{f_s T_k},
+\label{eq:phase_sample_map}\\
+p \in \{-n_{\mathrm{pre}},\ldots,-1,0,1,\ldots,n_{\mathrm{post}}\},
+\label{eq:phase_index_set}
+\end{gather}
+\end{subequations}\label{eq:phase_index_p}
+This maps the continuous phase in Eq.~\eqref{eq:phase_model} to the discrete template index used below.
+
+\begin{noteenv}\label{note:template_window_choice}
+The discrete template window is defined by the integer offsets $n_{\mathrm{pre}}$ and $n_{\mathrm{post}}$ around each R-peak: $n_{\mathrm{pre}}$ samples before the peak and $n_{\mathrm{post}}$ samples after it. A practical choice is $n_{\mathrm{pre}} = \lfloor 0.05\,f_s \rfloor$ (about 50~ms before the R-peak, covering QRS onset) and $n_{\mathrm{post}} = \lfloor 0.55\,f_s \rfloor$ (about 550~ms after, covering the full QRS-T complex at resting heart rate), giving $n_t = n_{\mathrm{pre}} + n_{\mathrm{post}} \approx 0.6\,f_s$ samples, i.e.\ 600~ms total window length. At $f_s = 250$~Hz this yields $n_t = 150$ samples.
+\end{noteenv}
+
+Problem 1. Estimate the repetitive template $\hat{d}_r$ over the discrete R-locked window defined in
+Eq.~\eqref{eq:phase_index_p}. For each beat, we assign the phase-aligned EEG sample at offset $p$
+to the corresponding template index $\phi_p$ and average across beats,
+\begin{subequations}
+\begin{gather}
+\hat{d}_r(\phi_p) = \frac{1}{N_r}\sum_{k=1}^{N_r} d_k(\hat{t}_k + \phi_p),
 \label{eq:drhat}\\
-p = -n_{\mathrm{pre}},\,\ldots,\,-1,\,0,\,1,\,\ldots,\,n_{\mathrm{post}},
-\label{eq:phase_index_set}\\
-n_t = n_{\mathrm{pre}} + n_{\mathrm{post}},
+n_t = n_{\mathrm{pre}} + n_{\mathrm{post}} + 1,
 \label{eq:Np_def}
 \end{gather}
 \end{subequations}
-where $n_t$ denotes the template-window length tied to the sampling rate, $N_r$ is the number of 
-R-peaks over the recording session, and $y_k(\phi_p)$ is the phase-aligned EEG sample at phase index $\phi_p$ 
-from beat $k$; $p=0$ is aligned with the R-peak. Stacking $\hat{d}_r(\phi_p)$ over all $p$ yields a continuous template carried across 
-all beats in the recording. The corresponding subtraction for all same-phase-synchronized EEG 
-samples is
+Here $n_t$ is the number of samples in the template window, $N_r$ is the number of R-peaks in the
+recording, and $p=0$ denotes the R-peak-centered sample. Stacking $\hat{d}_r(\phi_p)$ over all
+$p$ yields the full R-locked template across beats, and subtraction is then performed sample by
+sample as
 \begin{equation}
 \hat{s}(t) = y(t) - \hat{d}_r\!\left(\hat{\phi}(t)\right).
 \label{eq:cancel_phaseavg}
 \end{equation}
 
-Note 1. Eq.~\eqref{eq:drhat} is the non-causal phase-synchronized averaging estimate over 
+\begin{noteenv}\label{note:noncausal_phase_average}
+Eq.~\eqref{eq:drhat} is the non-causal phase-synchronized averaging estimate over 
 the full recording, and the resulting template is used for subtraction in 
 Eq.~\eqref{eq:cancel_phaseavg}.
+\end{noteenv}
 
-Note 2. Based on Assumption 1, in the Eq.~\eqref{eq:drhat} estimate, $n(t)$ is rendered 
+\begin{noteenv}\label{note:noise_averages}
+Based on Assumption~\ref{asm:cfa_dominant}, in the Eq.~\eqref{eq:drhat} estimate, $n(t)$ is rendered 
 toward zero as the sample mean of zero-mean white noise.
-
-Note 3. A practical guideline for choosing $n_{\mathrm{pre}}$, $n_{\mathrm{post}}$, and $n_t$: 
-set $n_{\mathrm{pre}} = \lfloor 0.05\,f_s \rfloor$ (about 50~ms before the R-peak, covering 
-QRS onset) and $n_{\mathrm{post}} = \lfloor 0.55\,f_s \rfloor$ (about 550~ms after, covering 
-the full QRS-T complex at resting heart rate), giving $n_t = n_{\mathrm{pre}} + n_{\mathrm{post}} 
-\approx 0.6\,f_s$ samples, i.e.\ 600~ms total window length. At $f_s = 250$~Hz this yields 
-$n_t = 150$ samples.
+\end{noteenv}
 
 Problem 2. Estimating beat timing robustly, i.e., the R-peak index $k$ and R-peak instant, so 
 that EEG samples can be phase-aligned. We denote estimated R-peaks by $\hat{t}_k$, estimated 
@@ -186,14 +214,17 @@ beat period by $\hat{T}_k=\hat{t}_{k+1}-\hat{t}_k$, and estimated phase by
 \end{equation}
 The next section addresses this timing-estimation problem with a min/max-envelope PI tracker.
 
-Note 4. Since $T_k$ is slowly varying (Assumption 2), $\hat{T}_k$ can be reliably predicted 
+\begin{noteenv}\label{note:pll_prediction}
+Since $T_k$ is slowly varying (Assumption~\ref{asm:tk_slowly_varying}), $\hat{T}_k$ can be reliably predicted 
 between successive R-peaks. The PI tracker operates as a phase-locked loop (PLL): it uses 
 detected R-peak fiducials to correct the instantaneous rate estimate and advances phase 
 continuously between beats, so that $\hat{\phi}(t)$ remains well-defined even in real-time 
 causal operation where the next R-peak has not yet been observed.
+\end{noteenv}
 
 % ===========================================================================
 \section{Non-Causal Repetitive Disturbance Rejection}
+\label{sec:noncausal_repetitive_rejection}
 
 This section shows how the phase-indexed signal model of Sec.~II directly yields a practical
 non-causal (offline) algorithm that requires only two passes over the recording.
@@ -206,7 +237,7 @@ Fig.~\ref{fig:real_aligned3beats}.
 
 \emph{Pass 1 --- Template estimation.}
 Scan the full EEG recording once with the set of $N_r$ detected R-peak instants
-$\{\hat{t}_k\}_{k=1}^{N_r}$. For each phase index $p$ (Eq.~\eqref{eq:phase_index_set}),
+$\{\hat{t}_k\}_{k=1}^{N_r}$. For each phase index $p$ (Eq.~\eqref{eq:phase_sample_map}),
 collect the EEG sample $y(\hat{t}_k + p/f_s)$ from every beat $k$ and accumulate the sum.
 After scanning all beats, divide by the per-index count to form the template
 $\hat{d}_r(\phi_p)$ per Eq.~\eqref{eq:drhat}. The result is a single waveform of length
@@ -219,7 +250,7 @@ value at the phase index $\hat{\phi}(t)$ nearest to the current time offset from
 closest R-peak, and subtract: $\hat{s}(t) = y(t) - \hat{d}_r(\hat{\phi}(t))$
 (Eq.~\eqref{eq:cancel_phaseavg}). Samples outside the template window
 ($|t - \hat{t}_k| > n_{\mathrm{post}}/f_s$ for all $k$) are passed through unchanged.
-By Note~2, the noise floor of the template averages toward zero as $N_r$ grows.
+By Note~\ref{note:noise_averages}, the noise floor of the template averages toward zero as $N_r$ grows.
 
 Fig.~\ref{fig:noncausal_cleanup} shows the result of this two-pass procedure applied to the
 SeizeIT2 segment from Fig.~\ref{fig:real_aligned3beats}: the template is built from the full
@@ -242,6 +273,7 @@ Eq.~\eqref{eq:cancel_phaseavg}). Template estimated from the full recording sess
 
 % ===========================================================================
 \section{ECG Phase Estimator}
+\label{sec:ecg_phase_estimator}
 
 \subsection{Min/max tracker + PI/PID phase tracking}
 A QRS-emphasis band-pass feeds two streaming trackers: a peak tracker $pk(t)$ (fast attack, slow 
@@ -284,6 +316,7 @@ linear in the window length.
 
 % ===========================================================================
 \section{Complexity Analysis}
+\label{sec:complexity_analysis}
 Let $L_w$ be the template length and $C$ the channel count. The proposed phase-tracker + ILC path 
 is lightweight: tracker updates and gating are constant-time, PI/PID phase update is constant-time 
 (amortized), and ILC lookup/update is constant-time with memory $L_w$. Thus, per-sample complexity 
@@ -293,6 +326,7 @@ separately in experiments and are not part of the proposed online deployment pat
 
 % ===========================================================================
 \section{Experiments}
+\label{sec:experiments}
 
 \subsection{Real ear-EEG validation: coherence and repeatable-template evidence}
 \label{sec:realdata}
@@ -419,6 +453,7 @@ window.}
 
 % ===========================================================================
 \section{Conclusion}
+\label{sec:conclusion}
 We presented a control-theoretic synthesis---min/max-tracker PI-PLL phase estimation,
 ILC/repetitive template cancellation, and explicit non-causal/buffered/strict-causal operating
 modes---for real-time CFA removal in low-channel ear-EEG. On a real behind-the-ear EEG/chest-ECG

@@ -22,4 +22,7 @@ cd "$PAPER_DIR"
 pdflatex -interaction=nonstopmode -halt-on-error paper.tex
 pdflatex -interaction=nonstopmode -halt-on-error paper.tex
 
+pdflatex -interaction=nonstopmode -halt-on-error convergence_note.tex
+pdflatex -interaction=nonstopmode -halt-on-error convergence_note.tex
+
 echo "Built: $PAPER_DIR/paper.pdf"
