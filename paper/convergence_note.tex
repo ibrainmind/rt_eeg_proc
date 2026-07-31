@@ -1,0 +1,221 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=black,urlcolor=blue]{hyperref}
+\usepackage{titlesec}
+\usepackage{parskip}
+
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.6em}{}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\SD}{\operatorname{SD}}
+\newcommand{\dhat}{\widehat{d}}
+
+\title{\vspace{-2em}\bfseries Why synchronous averaging removes $s(t)$:\\
+the $1/\sqrt{N_r}$ leakage, and what heartbeat/breath-driven EEG does to it}
+\author{Working note for the CFA ear-EEG paper}
+\date{\today}
+
+\begin{document}
+\maketitle
+\vspace{-1.5em}
+
+\noindent
+\textbf{Two things up front.}
+(i) The symbol in ``$1/\sqrt{N_r}$'' is the square-root radical $\sqrt{\,\cdot\,}$, not a
+variable ``$v$''. It means \emph{one over the square root of the number of averaged beats}
+$N_r$. (ii) Variance does appear, but underneath the radical: the leftover neural/noise in the
+template has \emph{standard deviation} $\SD/\sqrt{N_r}$, where $\SD=\sqrt{\Var}$ is the standard
+deviation of the R-asynchronous part of the signal. The mechanism is \emph{phase-asynchrony},
+not sampling rate --- the ``1\,Hz'' intuition predicts the wrong thing for alpha and is corrected
+below.
+
+\section{The estimator is a sample mean at fixed phase}
+
+For a fixed phase index $p$ (offset from the R-peak), the template value is the average, across
+$N_r$ beats, of the EEG sampled at the \emph{same} offset $p$ from each detected R-peak
+$\widehat t_k$:
+\begin{equation}
+\dhat_r(p) = \frac{1}{N_r}\sum_{k=1}^{N_r} y_k(p),
+\qquad
+y_k(p) \equiv y\!\left(\widehat t_k + p/f_s\right).
+\label{eq:est}
+\end{equation}
+Substituting the signal model $y=d+s+n$ and writing
+$s_k(p)=s(\widehat t_k+p/f_s)$, $n_k(p)=n(\widehat t_k+p/f_s)$:
+\begin{equation}
+\dhat_r(p) = \underbrace{d(p)}_{\text{same every beat}}
+\;+\; \frac{1}{N_r}\sum_{k=1}^{N_r} s_k(p)
+\;+\; \frac{1}{N_r}\sum_{k=1}^{N_r} n_k(p).
+\label{eq:decomp}
+\end{equation}
+Note this is \emph{not} decimation to $1$\,Hz. As $p$ ranges over the window, the template is
+reconstructed at full rate $f_s$; only within a fixed $p$ is there one sample per beat. So the
+question is never ``what is $s$ at $1$\,Hz'' --- it is whether the $N_r$ samples
+$\{s_k(p)\}_k$ at that offset add coherently or cancel.
+
+\section{Bias: what survives averaging}
+
+Take the expectation of Eq.~\eqref{eq:decomp} over beats. The disturbance term is deterministic
+and R-locked, so it passes through untouched. The neural/noise terms survive \emph{only if they
+have nonzero mean at the fixed R-phase}:
+\begin{equation}
+\E\bigl[\dhat_r(p)\bigr] = d(p) + \E\bigl[s_k(p)\bigr] + \E\bigl[n_k(p)\bigr].
+\end{equation}
+This is the pivotal line. Whether a component survives is decided by \emph{phase-coherence with
+the R-peak}, not by its frequency:
+\begin{itemize}[leftmargin=1.4em,itemsep=3pt]
+\item \textbf{R-asynchronous} ($\E[s_k(p)]=0$): across beats the cardiac phase relative to the
+ongoing EEG rhythm is uniformly distributed, so $s$ is sampled at scattered phases and averages
+to zero in the mean. \emph{Removed.} (Free-running alpha, background, sensor noise.)
+\item \textbf{R-coherent} ($\E[s_k(p)]\neq 0$): a component time-locked to the heartbeat adds
+coherently and \emph{is retained in the template} --- even if it is neural. (The
+heartbeat-evoked potential; see \S6.)
+\end{itemize}
+
+\paragraph{Why alpha dies although $10\,\text{Hz}\gg1\,\text{Hz}$ (the corrected intuition).}
+Let the alpha phase at successive R-peaks be $\theta_k$. Between beats it advances by
+$\theta_{k+1}-\theta_k = 2\pi f_\alpha\,\mathrm{RR}_k \bmod 2\pi$. Because $f_\alpha\,\mathrm{RR}$
+is not a low-order rational and both $f_\alpha$ and $\mathrm{RR}$ drift, this is an ergodic walk
+that fills $[0,2\pi)$ uniformly. At fixed offset $p$ you therefore sample alpha at effectively
+uniform random phases, whose mean is zero. \textbf{Alpha is removed because it is
+phase-incoherent with the R-peak, not because it is ``fast''.} A component's spectral content is
+irrelevant; its \emph{relationship to the index clock} is everything. This is exactly RRO/NRRO
+separation in disk servo: repeatable runout (index-locked) survives synchronous averaging;
+non-repeatable runout averages out regardless of its frequency band.
+
+\section{Variance: where the $1/\sqrt{N_r}$ comes from}
+
+The mean removes R-asynchronous components in expectation, but on a \emph{finite} record a residual
+survives. Its size is a variance calculation. Let the asynchronous part at offset $p$ have
+per-sample variance
+\begin{equation}
+\Var\bigl[s_k(p)+n_k(p)\bigr] = V(p), \qquad \SD(p)=\sqrt{V(p)}.
+\end{equation}
+The leakage in the template is the sample-mean of these $N_r$ terms. If the per-beat samples are
+\emph{mutually uncorrelated},
+\begin{equation}
+\Var\bigl[\dhat_r(p)\bigr]
+= \frac{1}{N_r^2}\sum_{k=1}^{N_r}\Var\bigl[s_k(p)+n_k(p)\bigr]
+= \frac{V(p)}{N_r},
+\qquad
+\boxed{\ \SD\bigl[\dhat_r(p)\bigr] = \frac{\SD(p)}{\sqrt{N_r}}\ }
+\label{eq:leak}
+\end{equation}
+That is the $1/\sqrt{N_r}$: the \emph{standard deviation} of the surviving neural/noise leakage
+shrinks as one over the square root of the beat count, because averaging $N_r$ uncorrelated terms
+divides their variance by $N_r$ and hence their SD by $\sqrt{N_r}$. Variance sits inside the
+radical; the radical is why it is $\sqrt{N_r}$ and not $N_r$.
+
+Numerically: with $N_r=717$ beats, ideal leakage is $1/\sqrt{717}\approx 3.7\%$ of the
+single-beat background SD. Your template deflections are an order of magnitude above that floor,
+which is \emph{why} the R-locked deflection is visible at all --- the averaging has bought you
+$\sim\!27\times$ SNR on the disturbance relative to the asynchronous background.
+
+\subsection*{The realistic version: correlated beats and $N_{\mathrm{eff}}$}
+
+Equation~\eqref{eq:leak} assumed uncorrelated beats. Real EEG has weak beat-to-beat correlation
+(next section), so the general result carries a correlation-inflation factor:
+\begin{equation}
+\Var\bigl[\dhat_r(p)\bigr]
+= \frac{V(p)}{N_r}\Bigl(1 + \tfrac{2}{N_r}\!\!\sum_{i<j} c_{ij}\Bigr)
+\;\equiv\; \frac{V(p)}{N_{\mathrm{eff}}},
+\qquad
+N_{\mathrm{eff}} = \frac{N_r}{1 + \tfrac{2}{N_r}\sum_{i<j}c_{ij}},
+\label{eq:neff}
+\end{equation}
+where $c_{ij}$ is the correlation of the asynchronous part between beats $i$ and $j$. Positive
+correlation (things that persist across neighboring beats) makes $N_{\mathrm{eff}}<N_r$, so the
+true leakage is $\SD/\sqrt{N_{\mathrm{eff}}}>\SD/\sqrt{N_r}$. This is the gap between the ideal
+$3.7\%$ and the empirical $\sim\!10\%$ alpha leakage you observe: you do not have $717$
+\emph{independent} looks, you have fewer, because respiration correlates neighboring beats.
+
+\section{How heartbeat- and breath-driven \emph{real} EEG is affected}
+
+Not everything physiological is R-asynchronous. Two mechanisms couple genuine EEG to the cardiac
+and respiratory cycles, and they hit the template in two \emph{different} ways --- one as bias,
+one as variance. This is the distinction the ``1\,Hz'' picture cannot see.
+
+\subsection*{(a) Heartbeat-evoked potential (HEP) --- a \emph{bias} term}
+
+The HEP is a cortical response \emph{triggered by} each heartbeat (baroreceptor / interoceptive
+pathways), so it is genuinely time-locked to the R-peak, typically $200$--$600$\,ms after it.
+Being R-coherent, it has $\E[s_k(p)]\neq 0$ and therefore \textbf{survives averaging and lands in
+the template} --- it does \emph{not} decay with $N_r$. It is a bias, not leakage:
+\begin{equation}
+\E\bigl[\dhat_r(p)\bigr] = \underbrace{d_{\mathrm{CFA}}(p)}_{\text{volume-conducted, want to remove}}
+\;+\; \underbrace{d_{\mathrm{HEP}}(p)}_{\text{neural, R-locked, may NOT want to remove}}.
+\end{equation}
+Consequence: synchronous averaging cannot distinguish CFA from HEP, because both are R-locked. If
+you subtract the template you remove the HEP too. Two levers separate them (neither is more
+averaging): \emph{latency} --- CFA is QRS-synchronous (near $p=0$), HEP sits $200$--$600$\,ms
+later; and the \emph{FIR residual} of the earlier note --- the part of the R-locked template that
+a filtered ECG explains is volume-conducted CFA, the part it does not explain at HEP latency is
+the candidate HEP. This is the non-circular use of the FIR fit: after R-locking is confirmed, it
+splits the R-locked template into cardiac-field vs.\ cardiac-\emph{triggered}-neural.
+
+\subsection*{(b) Respiratory sinus arrhythmia (RSA) --- a \emph{variance}-inflation term}
+
+Respiration modulates the beat interval $\mathrm{RR}_k$ (your Assumption~2) and \emph{also}
+modulates EEG --- via arousal, and via respiration-driven electrode micro-motion and contact
+impedance. Because one breath spans several beats ($\sim\!0.2$--$0.4$\,Hz vs.\ $\sim\!1$\,Hz),
+respiration-linked EEG is \emph{slowly varying across beats}: it is neither cleanly R-locked (so
+it is not a fixed bias like the HEP) nor cleanly independent (so it does not average as
+$1/\sqrt{N_r}$). It appears as positive short-lag correlation $c_{ij}$ between neighboring beats,
+which is exactly the term that drives $N_{\mathrm{eff}}<N_r$ in Eq.~\eqref{eq:neff}. Net effect:
+RSA-coupled EEG \textbf{inflates the residual leakage above the ideal floor} rather than biasing
+the template shape. It is the physical reason your empirical leakage exceeds $1/\sqrt{N_r}$.
+
+\paragraph{Summary of the three regimes.}
+\begin{center}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Component & Relation to R-peak & Effect on template & Scaling \\
+\midrule
+Free-running alpha, noise & asynchronous       & averages out        & SD$/\sqrt{N_r}$ (leakage) \\
+Volume-conducted CFA      & phase-coherent      & retained (target)   & bias, no decay \\
+HEP (neural)              & phase-coherent      & retained (confound) & bias, no decay \\
+RSA-coupled EEG           & slow, partial coher.& excess leakage      & SD$/\sqrt{N_{\mathrm{eff}}}$, $N_{\mathrm{eff}}\!<\!N_r$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{What to put in the paper, and how to measure it}
+
+\paragraph{Text.} Replace any ``sampled at heart rate'' wording with the asynchrony statement:
+\begin{quote}\itshape
+By Assumption~1, $s(t)$ and $n(t)$ are asynchronous with the R-peak: across beats the cardiac
+phase relative to ongoing EEG rhythms is uniformly distributed, so for each phase index $p$ the
+ensemble $\{s_k(p)\}$, $\{n_k(p)\}$ is zero-mean and (near-)incoherent. Its sample mean converges
+as $O(1/\sqrt{N_r})$ in standard deviation, while the R-locked disturbance $d(p)$ adds coherently.
+A small excess above the ideal floor reflects respiration-mediated (RSA) correlation between
+beats, i.e.\ an effective count $N_{\mathrm{eff}}<N_r$; a residual R-locked \emph{neural}
+component (HEP) survives as a bias and is treated in scope.
+\end{quote}
+
+\paragraph{Measurements (one run on sub-001).}
+\begin{enumerate}[leftmargin=1.4em,itemsep=2pt]
+\item \textbf{Leakage floor / R-locking test.} Rebuild the template on phase-\emph{scrambled}
+R-peaks (same $N_r$, shuffled intervals). The scrambled template's amplitude is your empirical
+leakage floor $\SD/\sqrt{N_{\mathrm{eff}}}$; the true-vs-scrambled ratio certifies the deflection
+is R-locked (CFA/HEP) rather than an averaging artifact. This directly \emph{measures}
+$N_{\mathrm{eff}}$.
+\item \textbf{Alpha preservation.} Before/after $10$\,Hz spectral check --- absence of a notch
+confirms free-running alpha was not removed (asynchronous $\Rightarrow$ untouched, as derived).
+\item \textbf{CFA vs.\ HEP split.} FIR-explained fraction near $p=0$ (CFA) vs.\ unexplained
+R-locked energy at $200$--$600$\,ms (HEP candidate), reported by latency.
+\end{enumerate}
+
+\noindent
+Bottom line: $s(t)$ vanishes because it is phase-incoherent with the R-peak, and its finite-record
+residual falls as $\SD/\sqrt{N_r}$ (SD $=\sqrt{\Var}$; the radical is why it is $\sqrt{N_r}$).
+Heartbeat- and breath-driven \emph{real} EEG breaks the ideal picture in two named ways: the HEP
+adds a non-decaying \emph{bias} to the template, and RSA adds beat-to-beat correlation that
+\emph{inflates the leakage} to $\SD/\sqrt{N_{\mathrm{eff}}}$ with $N_{\mathrm{eff}}<N_r$.
+\end{document}

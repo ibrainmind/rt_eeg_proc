@@ -14,6 +14,12 @@
 \newtheorem{noteenv}{Note}
 \newtheorem{problem}{Problem}
 
+% Custom commands for notation (from convergence_note.tex)
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\SD}{\operatorname{SD}}
+\newcommand{\dhat}{\widehat{d}}
+
 % ---------------------------------------------------------------------------
 % NOTE ON NOTATION (not printed): every symbol is a plain Latin letter with a
 % stated meaning; system-theoretic quantities use control-custom letters
@@ -177,9 +183,7 @@ In this paper, we make no claim that the solution of Eq.~\ref{eq:cfa_goal} prese
 a meaningful future work or extension worthy of further investigation. 
 \end{noteenv}
 
-% ===========================================================================
-\section{Repetitive Disturbance Rejection}
-\label{sec:noncausal_repetitive_rejection}
+
 
 To instantiate Problem~\ref{prob:cfa_removal} on the discrete sample grid, let $\hat{t}_k$ be
 the estimated $k$-th R-peak sample instant and $f_s$ the sampling rate. The $k$-th beat's
@@ -205,128 +209,102 @@ onset) and $n_{\mathrm{post}} = \lfloor 0.55\,f_s \rfloor$ (550~ms, covering the
 at $f_s = 250$~Hz this gives $n_t = 151$ samples.
 \end{noteenv}
 
-\subsection{Problem 1.1: Non-Causal Cancellation}
+% ===========================================================================
+\section{Repetitive Disturbance Rejection}
+\label{sec:noncausal_repetitive_rejection}
+
+\subsection{Non-Causal Cancellation}
 \label{sec:noncausal_sol}
 
-The non-causal solution to Problem~\ref{prob:cfa_removal} uses all $N_r$ beats to form the
-minimum-MSE template by same-phase averaging across beats,
+For offline CFA removal, we could run non-causal averaging to obtain the solution of Problem~\ref{prob:cfa_removal}. 
+That is, for a fixed phase index $p$ (offset from the R-peak), the template value is the average, across
+$N_r$ beats, of the EEG sampled at the \emph{same} offset $p$ from each detected R-peak
+$\hat t_k$:
 \begin{equation}
-\hat{d}_r(\phi_p) = \frac{1}{N_r}\sum_{k=1}^{N_r} d_k(\phi_p),
-\label{eq:drhat}
+\dhat_r(p) = \frac{1}{N_r}\sum_{k=1}^{N_r} y_k(p),
+\qquad
+y_k(p) \equiv y\!\left(\hat t_k + p/f_s\right).
+\label{eq:est}
 \end{equation}
-enabling CFA removal on the sampled grid as
+Substituting the signal $y_k(p)$ by its definition from the discrete time version of Eq.~(\ref{eq:meas}), we obtain
 \begin{equation}
-\hat{s}\!\left(\hat{t}_k + \frac{p}{f_s}\right) = d_k(\phi_p) - \hat{d}_r(\phi_p).
-\label{eq:cancel_phaseavg}
+\dhat_r(p) = \underbrace{d_r(p)}_{\text{same every beat}}
+\;+\; \frac{1}{N_r}\sum_{k=1}^{N_r} s_k(p)
+\;+\; \frac{1}{N_r}\sum_{k=1}^{N_r} n_k(p).
+\label{eq:decomp}
 \end{equation}
-Under Assumption~\ref{asm:cfa_dominant}, the phase-asynchronous noise contribution to
-$\hat{d}_r(\phi_p)$ averages toward zero as $N_r$ grows.
+In Eq.~\eqref{eq:est}, we use $\dhat_r(p)$ to denotate $\hat{d}_r(\phi_p)$ for better readability,
+ and so are the $p$-indexed notations used in the subsequent discussion.
 
-\subsection{Two-Pass Procedure}
-
-\emph{Pass 1 --- Template estimation.}
-Scan the full EEG recording once with the set of $N_r$ detected R-peak instants
-$\{\hat{t}_k\}_{k=1}^{N_r}$. For each phase index $p$ (Eq.~\eqref{eq:phase_sample_map}),
-collect the EEG sample $y(\hat{t}_k + p/f_s)$ from every beat $k$ and accumulate the sum.
-After scanning all beats, divide by the per-index count to form the template
-$\hat{d}_r(\phi_p)$ per Eq.~\eqref{eq:drhat}. The result is a single waveform of length
-$n_t = n_{\mathrm{pre}} + n_{\mathrm{post}}$ that captures the mean R-peak-locked cardiac
-disturbance over the entire session.
-
-\emph{Pass 2 --- Repetitive disturbance subtraction.}
-Scan the EEG recording a second time. For each sample $y(t)$, look up the template
-value at the phase index $\hat{\phi}(t)$ nearest to the current time offset from the
-closest R-peak and subtract via Eq.~\eqref{eq:cancel_phaseavg}: $\hat{s}(\hat{t}_k+p/f_s) = d_k(\phi_p) - \hat{d}_r(\phi_p)$.
-Samples outside the template window are passed through unchanged.
-Because phase-asynchronous noise is zero-mean (Assumption~\ref{asm:cfa_dominant}), the template noise floor averages toward zero as $N_r$ grows.
-
-Fig.~\ref{fig:noncausal_cleanup} shows the result of this two-pass procedure applied to the
-SeizeIT2 segment from Fig.~\ref{fig:real_aligned3beats}: the template is built from the full
-5-minute recording ($N_r = 359$ learnable beats), and the same 3-beat display window is
-extracted from the cleaned signal. Comparing the bottom panel of Fig.~\ref{fig:noncausal_cleanup}
-with EEG~2 in Fig.~\ref{fig:real_aligned3beats}, the heartbeat-locked deflections are
-substantially reduced, confirming that the artifact is genuinely R-peak-synchronous and
-addressable by the phase-indexed template.
-
+Take the expectation of Eq.~\eqref{eq:decomp} over R-peaks, we obtain
+\begin{equation}
+\E\bigl[\dhat_r(p)\bigr] = d_r(p) + \E\bigl[s_k(p)\bigr] + \E\bigl[n_k(p)\bigr].
+\end{equation}
+The repetitive R-peak-locked disturbance template $d(p)$ is deterministic. Idealy, 
+The non-R-peak-locked neural term $\E\bigl[s_k(p)\bigr] $, and noise term $\E\bigl[n_k(p)\bigr]$ 
+will render to zero according to Assumption~\ref{asm:cfa_dominant}, 
+therefore the Eq.~\eqref{eq:decomp} will offer us solution by design: 
+\begin{equation}
+\dhat_r(p) \approx d_r(p),
+\end{equation}
+The CFA removed EEG signal is approximated by
+\begin{equation}\label{eq:ideal}
+\hat{s}_k(p) \approx y_k(p) - \dhat_r(p),
+\end{equation}
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\linewidth]{fig_real/fig_noncausal_cleanup.png}
 \caption{Non-causal repetitive CFA cancellation on the same 3-beat segment as Fig.~1.
-Top: chest ECG with detected R-peaks. Bottom: original (orange) and non-causally cleaned (green)
-EEG~2 overlaid (MNE-preprocessed: 50~Hz notch, 0.5~Hz high-pass; template subtracted via
-Eq.~\eqref{eq:cancel_phaseavg}). Template estimated from the full recording session
-($N_r > 300$ beats), with this 3-beat window extracted from within the cleaned signal.}
+Top: chest ECG with detected R-peaks. Bottom: EEG~2 original (orange) and non-causally cleaned (green)
+The repetitive template $\hat{d}_r(p)$ by (Eq.~\eqref{eq:ideal}) is estimated from the full recording session
+($N_r > 300$ beats).}
 \label{fig:noncausal_cleanup}
 \end{figure}
+Fig.~\ref{fig:noncausal_cleanup} shows the result of non-causal repetitive disturbance rejection to the
+SeizeIT2 segment from Fig.~\ref{fig:real_aligned3beats}: the template is built from the full
+5-minute recording ($N_r = 359$ learnable beats). Comparing the bottom panel of Fig.~\ref{fig:noncausal_cleanup}
+with EEG~2 in Fig.~\ref{fig:real_aligned3beats}, the heartbeat-locked deflections are
+substantially reduced.
 
-% ===========================================================================
-\section{ECG Phase Estimator}
-\label{sec:ecg_phase_estimator}
+Practically, as $N_r$ is limited number, it's worthy to go deeper
+to look from variance perspective, about what residual leakage remains in the template.
 
-\begin{problem}\label{prob:timing_estimation}
-Estimate $\hat{t}_k$ robustly so that EEG samples can be phase-aligned via Eq.~\eqref{eq:dk_def}.
-The estimated cardiac phase between beats advances as
+The mean removes R-asynchronous components in expectation, but on a \emph{finite} record a residual
+survives. Its size is a variance calculation. Let the asynchronous part at offset $p$ have
+per-sample variance
 \begin{equation}
-\hat{\phi}(t) = \frac{t - \hat{t}_k}{\hat{T}_k}, \qquad \hat{T}_k = \hat{t}_{k+1} - \hat{t}_k,
-\label{eq:phi_hat}
+\Var\bigl[s_k(p)+n_k(p)\bigr] = V(p).
 \end{equation}
-where $\hat{T}_k$ is the estimated beat period.
-\end{problem}
-
-\begin{noteenv}\label{note:pll_prediction}
-Since $T_k$ is slowly varying (Assumption~\ref{asm:tk_slowly_varying}), $\hat{T}_k$ can be reliably
-predicted between successive R-peaks. The PI tracker advances phase continuously between beats so
-that $\hat{\phi}(t)$ remains well-defined in real-time causal operation.
-\end{noteenv}
-
-\subsection{Min/max tracker + PI/PID phase tracking}
-A QRS-emphasis band-pass feeds two streaming trackers: a peak tracker $pk(t)$ (fast attack, slow 
-release) and a baseline tracker $bl(t)$ (slow moving average). The normalized gate
+The leakage in the template is the sample-mean of these $N_r$ terms. If the per-beat samples are
+\emph{mutually uncorrelated},
 \begin{equation}
-g(t) = \frac{x(t) - bl(t)}{pk(t) - bl(t)}
-\label{eq:gate}
+\Var\bigl[\dhat_r(p)\bigr]
+= \frac{1}{N_r^2}\sum_{k=1}^{N_r}\Var\bigl[s_k(p)+n_k(p)\bigr]
+= \frac{V(p)}{N_r},
+\qquad
+\label{eq:leak}
 \end{equation}
-is amplitude-drift invariant, so posture/contact drift does not defeat detection. A Schmitt 
-hysteresis and a 250~ms refractory yield clean beat gating; the fiducial $t_k$ is the raw-reference 
-maximum within the gated window (low jitter).
 
-A PI phase-locked loop converts sparse fiducials into a continuous phase. Between beats the phase 
-advances by the instantaneous rate estimate,
+Numerically: with $N_r=359$ beats, ideal leakage is $1/\sqrt{359}\approx 5.3\%$ of the
+single-beat background standard deviation, which is around 
+
+\subsection*{The realistic version: correlated beats and $N_{\mathrm{eff}}$}
+
+Equation~\eqref{eq:leak} assumed uncorrelated beats. Real EEG has weak beat-to-beat correlation
+(next section), so the general result carries a correlation-inflation factor:
 \begin{equation}
-p(t+1) = \big[\, p(t) + \mathrm{fr}(t) \,\big] \bmod 1, \qquad \mathrm{fr}(t) = 
-\frac{1}{\mathrm{RR}_{\mathrm{est}}(t)\, f_s},
-\label{eq:phaseacc}
+\Var\bigl[\dhat_r(p)\bigr]
+= \frac{V(p)}{N_r}\Bigl(1 + \tfrac{2}{N_r}\!\!\sum_{i<j} c_{ij}\Bigr)
+\;\equiv\; \frac{V(p)}{N_{\mathrm{eff}}},
+\qquad
+N_{\mathrm{eff}} = \frac{N_r}{1 + \tfrac{2}{N_r}\sum_{i<j}c_{ij}},
+\label{eq:neff}
 \end{equation}
-where $f_s$ is the sample rate. At each fiducial, a proportional term realigns phase and an 
-integral term updates the rate estimate,
-\begin{align}
-p &\leftarrow p - K_p \, e_p, \label{eq:pcorr}\\
-\mathrm{RR}_{\mathrm{est}} &\leftarrow \mathrm{RR}_{\mathrm{est}} + K_i 
-\,(\mathrm{RR}_{\mathrm{meas}} - \mathrm{RR}_{\mathrm{est}}), \label{eq:rcorr}
-\end{align}
-with $e_p$ the wrapped phase error and $K_p,K_i$ the PI gains. The loop bandwidth is set above 
-respiratory sinus arrhythmia (RSA, $\sim$0.2--0.4~Hz) and below per-beat detection noise. An 
-arrhythmia supervisor classifies each beat by the ratio 
-$\mathrm{RR}_{\mathrm{meas}}/\mathrm{RR}_{\mathrm{est}}$ and applies the matching 
-reflex---\emph{premature}: trust the measured phase, freeze the rate and learning; \emph{missed}: 
-trust the prediction, keep the rate---protecting both the loop and the template.
-
-\subsection{Algorithm summary}
-Per sample: (1)~update trackers \eqref{eq:gate} and gate; (2)~advance phase \eqref{eq:phaseacc}, 
-correct at fiducials \eqref{eq:pcorr}--\eqref{eq:rcorr}, run the supervisor; (3)~ILC
-lookup, limited subtraction, and template update on normal beats. The proposed online path is
-therefore constant-time per sample, with template memory 
-linear in the window length.
-
-% ===========================================================================
-\section{Complexity Analysis}
-\label{sec:complexity_analysis}
-Let $L_w$ be the template length and $C$ the channel count. The proposed phase-tracker + ILC path 
-is lightweight: tracker updates and gating are constant-time, PI/PID phase update is constant-time 
-(amortized), and ILC lookup/update is constant-time with memory $L_w$. Thus, per-sample complexity 
-is $O(1)$ and memory is $O(L_w)$ for each channel. This profile is suitable for always-on 
-low-power ear-EEG devices. For fairness, baseline adaptive cancellers (e.g., LMS/RLS) are reported 
-separately in experiments and are not part of the proposed online deployment path.
+where $c_{ij}$ is the correlation of the asynchronous part between beats $i$ and $j$. Positive
+correlation (things that persist across neighboring beats) makes $N_{\mathrm{eff}}<N_r$, so the
+true leakage is $\SD/\sqrt{N_{\mathrm{eff}}}>\SD/\sqrt{N_r}$. This is the gap between the ideal
+$3.7\%$ and the empirical $\sim\!10\%$ alpha leakage you observe: you do not have $717$
+\emph{independent} looks, you have fewer, because respiration correlates neighboring beats.
 
 % ===========================================================================
 \section{Experiments}
