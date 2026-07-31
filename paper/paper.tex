@@ -166,8 +166,7 @@ Since $d_r(\phi(t))$ is periodic in the cardiac phase $\phi(t)$ indexed solely b
 $\{t_k\}$, Problem~\ref{prob:cfa_removal} depends only on R-peak \emph{timing} and never on the
 ECG waveform shape. Consequently, any wearable heartbeat source---smartwatch ECG, wrist
 PPG, or any device delivering beat timing via a synchronisation mechanism---is sufficient to
-instantiate the solution. This perspective is similar or almost identical to the Repetitive RunOut (RRO) vs non-Repetitive RunOut (NRRO)
-concepts from mechatronics \cite{hara1988}. For simplicity, we call $d_r(\phi(t))$ as RRO in the EEG, and $\hat{d}_r(\phi(t))$ as the RRO template.
+instantiate the solution.
 \end{noteenv}
 
 \begin{noteenv}\label{note:hep}
@@ -184,7 +183,7 @@ a meaningful future work or extension worthy of further investigation.
 
 To instantiate Problem~\ref{prob:cfa_removal} on the discrete sample grid, let $\hat{t}_k$ be
 the estimated $k$-th R-peak sample instant and $f_s$ the sampling rate. The $k$-th beat's
-R-peak-aligned RRO $d_r(\phi(t))$ at integer offset $p$ is defined as
+R-peak-aligned $d_r(\phi(t))$ at integer offset $p$ is defined as
 \begin{equation}
 d_k\!\left(\hat{t}_k + \frac{p}{f_s}\right)  \triangleq  d_k(\phi_p),
 \label{eq:dk_def}

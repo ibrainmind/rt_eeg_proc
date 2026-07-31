@@ -1,0 +1,136 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{amsthm}
+\usepackage{booktabs}
+\usepackage[hidelinks]{hyperref}
+
+\newtheorem{assumption}{Assumption}
+\newtheorem{noteenv}{Note}
+\newtheorem{problem}{Problem}
+
+% Notation and conventions matching paper.tex
+% Symbols: y(t) measured EEG, s(t) neural signal, d_r(t) repetitive disturbance,
+% n(t) noise, t_k R-peak instant, T_k beat interval, phi(t) cardiac phase in [0,1)
+
+\title{ECG Phase Estimator for Cardiac Artifact Removal}
+\author{Extracted from: Cardiac Field Artifact Removal in Ear-EEG Using Repetitive Disturbance Rejection}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+% =========================================================================
+% Background: Problem Formulation (excerpted)
+% =========================================================================
+
+\section*{Problem Formulation (Background)}
+
+Following repetitive-control modeling conventions, the measured ear-EEG signal is modeled as
+\begin{equation}
+y(t) = s(t) + d_r(t) + n(t),
+\label{eq:meas}
+\end{equation}
+where $s(t)$ is the neural signal of interest, $d_r(t)$ is the heartbeat-synchronous repetitive 
+cardiac disturbance, and $n(t)$ aggregates asynchronous interference and sensor noise. The subscript 
+$r$ denotes the repetitive nature of the disturbance. Its period is heartbeat dependent and is set by 
+ECG R-peak timing, with beat interval
+\begin{equation}
+T_k = t_{k+1} - t_k,
+\label{eq:Tk}
+\end{equation}
+where $t_k$ is the $k$-th detected R-peak instant.
+
+\begin{assumption}\label{asm:tk_slowly_varying}
+The beat period $T_k$ is assumed slowly varying, dominated by respiratory sinus arrhythmia (RSA), with
+additional small modulation from low-level muscle/motion effects in resting-state recordings.
+\end{assumption}
+
+The repetitive disturbance is represented as a phase-indexed waveform
+\begin{equation}
+d_r(t) = d_r\!\left(\phi(t)\right), \qquad
+\phi(t) = \frac{t - t_k}{T_k}, \quad t \in [t_k, t_{k+1}),
+\label{eq:phase_model}
+\end{equation}
+with $\phi(t)\in[0,1)$ the R-peak-aligned cardiac phase.
+
+\begin{problem}\label{prob:timing_estimation}
+Estimate $\hat{t}_k$ robustly so that EEG samples can be phase-aligned via the phase model.
+The estimated cardiac phase between beats advances as
+\begin{equation}
+\hat{\phi}(t) = \frac{t - \hat{t}_k}{\hat{T}_k}, \qquad \hat{T}_k = \hat{t}_{k+1} - \hat{t}_k,
+\label{eq:phi_hat}
+\end{equation}
+where $\hat{T}_k$ is the estimated beat period.
+\end{problem}
+
+\begin{noteenv}\label{note:pll_prediction}
+Since $T_k$ is slowly varying (Assumption~\ref{asm:tk_slowly_varying}), $\hat{T}_k$ can be reliably
+predicted between successive R-peaks. The PI tracker advances phase continuously between beats so
+that $\hat{\phi}(t)$ remains well-defined in real-time causal operation.
+\end{noteenv}
+
+% =========================================================================
+% Main Section IV Content
+% =========================================================================
+
+\section{ECG Phase Estimator}
+\label{sec:ecg_phase_estimator}
+
+\subsection{Min/max tracker + PI/PID phase tracking}
+
+A QRS-emphasis band-pass feeds two streaming trackers: a peak tracker $pk(t)$ (fast attack, slow 
+release) and a baseline tracker $bl(t)$ (slow moving average). The normalized gate
+\begin{equation}
+g(t) = \frac{x(t) - bl(t)}{pk(t) - bl(t)}
+\label{eq:gate}
+\end{equation}
+is amplitude-drift invariant, so posture/contact drift does not defeat detection. A Schmitt 
+hysteresis and a 250~ms refractory yield clean beat gating; the fiducial $t_k$ is the raw-reference 
+maximum within the gated window (low jitter).
+
+A PI phase-locked loop converts sparse fiducials into a continuous phase. Between beats the phase 
+advances by the instantaneous rate estimate,
+\begin{equation}
+p(t+1) = \big[\, p(t) + \mathrm{fr}(t) \,\big] \bmod 1, \qquad \mathrm{fr}(t) = 
+\frac{1}{\mathrm{RR}_{\mathrm{est}}(t)\, f_s},
+\label{eq:phaseacc}
+\end{equation}
+where $f_s$ is the sample rate. At each fiducial, a proportional term realigns phase and an 
+integral term updates the rate estimate,
+\begin{align}
+p &\leftarrow p - K_p \, e_p, \label{eq:pcorr}\\
+\mathrm{RR}_{\mathrm{est}} &\leftarrow \mathrm{RR}_{\mathrm{est}} + K_i 
+\,(\mathrm{RR}_{\mathrm{meas}} - \mathrm{RR}_{\mathrm{est}}), \label{eq:rcorr}
+\end{align}
+with $e_p$ the wrapped phase error and $K_p,K_i$ the PI gains. The loop bandwidth is set above 
+respiratory sinus arrhythmia (RSA, $\sim$0.2--0.4~Hz) and below per-beat detection noise. An 
+arrhythmia supervisor classifies each beat by the ratio 
+$\mathrm{RR}_{\mathrm{meas}}/\mathrm{RR}_{\mathrm{est}}$ and applies the matching 
+reflex---\emph{premature}: trust the measured phase, freeze the rate and learning; \emph{missed}: 
+trust the prediction, keep the rate---protecting both the loop and the template.
+
+\subsection{Algorithm summary}
+
+Per sample: (1)~update trackers \eqref{eq:gate} and gate; (2)~advance phase \eqref{eq:phaseacc}, 
+correct at fiducials \eqref{eq:pcorr}--\eqref{eq:rcorr}, run the supervisor; (3)~ILC
+lookup, limited subtraction, and template update on normal beats. The proposed online path is
+therefore constant-time per sample, with template memory 
+linear in the window length.
+
+% =========================================================================
+% Complexity Analysis (follows immediately after)
+% =========================================================================
+
+\section{Complexity Analysis}
+\label{sec:complexity_analysis}
+
+Let $L_w$ be the template length and $C$ the channel count. The proposed phase-tracker + ILC path 
+is lightweight: tracker updates and gating are constant-time, PI/PID phase update is constant-time 
+(amortized), and ILC lookup/update is constant-time with memory $L_w$. Thus, per-sample complexity 
+is $O(1)$ and memory is $O(L_w)$ for each channel. This profile is suitable for always-on 
+low-power ear-EEG devices. For fairness, baseline adaptive cancellers (e.g., LMS/RLS) are reported 
+separately in experiments and are not part of the proposed online deployment path.
+
+\end{document}
