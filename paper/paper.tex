@@ -258,7 +258,7 @@ The noise floor leakage in $\dhat_r(p)$ due to limited sample average is the sam
 \qquad
 \label{eq:leak}
 \end{equation}
-IF we consider realistically there are some neuro signal has slight correlation with the R-peaks, the leakage 
+If we consider realistically there are some neuro signal has slight correlation with the R-peaks, the leakage 
 will have an inflation term as
 \begin{equation}
 \Var\bigl[\dhat_r(p)\bigr]
@@ -268,40 +268,67 @@ will have an inflation term as
 \end{equation}
 where $\delta_{coh}$ represents the total correlation accumulation across the beats. However, as the we choose a reasonable
 large enough $N_r$, the leakage and inflation will becomes negligible, we will give more detailed analysis in the next sections.
+
+
 \subsection{Causal Cancellation}
 
 For streaming operation the batch average of Eq.~\eqref{eq:est} is replaced by its standard
 exponentially-weighted ILC recursion, updated once per learnable beat at each offset $p$:
-\begin{equation}
-\hat{d}_r^{(k)}(p) = \hat{d}_r^{(k-1)}(p) + a\,\bigl[\,y_k(p) - \hat{d}_r^{(k-1)}(p)\,\bigr],
-\end{equation}
-with reasonable gain $a=[0.06]$ for fast stable enough learning and minimum noise floor leakage; the supervisor freezes the update on
-premature/missed beats. Cancellation subtracts the template at the current phase offset,
-$\hat{s}(n)=y(n)-\hat{d}_r(p(n))$, where the anchor sets the mode: \emph{buffered} anchors
-$p(n)$ to the detected R-peak (one-beat latency, full R-spike removal, matches non-causal),
-while \emph{strict causal} anchors to the PLL-predicted R (zero latency) with acceptable predicted-R peak jitter. 
+\begin{subequations}\label{eq:causal_ilc}
+\begin{align}
+\hat{d}_r^{(k)}(p) &= \hat{d}_r^{(k-1)}(p) + a\,\bigl[\,y_k(p) - \hat{d}_r^{(k-1)}(p)\,\bigr],
+\label{eq:causal_ilc_update}\\
+\widehat{s}_{k-1}(p) &\approx y_{k-1}(p) - \hat{d}_r^{(k-1)}(p).
+\label{eq:causal_ilc_buffered}
+\end{align}
+\end{subequations}
+where $a$ is a tunable learning gain selected from the convergence-versus-leakage tradeoff; the supervisor freezes the update on
+premature/missed beats. Eq.~\eqref{eq:causal_ilc_buffered} is the buffered one-R-peak-delay cancellation form,
+equivalent to Eq.~\eqref{eq:ideal} with index $k-1$. For true strict real-time cancellation,
+the current beat's R-peak $t_k$ has not arrived yet, so the canceller must anchor phase using
+the PI-type R-peak phase tracker prediction rather than detected $t_k$ timing; this enables
+zero added latency at the cost of prediction-jitter-limited suppression around the R spike.
 Both modes are $O(1)$ per sample with $O(L_w)$ memory, which makes the proposed method favorable for real-time implementation.
+\begin{noteenv}
+Real-time cancellation requires that the R-peak detector has basic capability to reject immature beats,
+or to invalidate abnormal R-peaks, so that both template update and cancellation can be held when the
+timing reference is unreliable. We provide a functional robust R-peak detector and phase tracker for
+data analysis in the next subsection; however, detailed detector/tracker design is outside the scope
+of this paper.
+\end{noteenv}
 % ===========================================================================
 
 \section{Experiments}
 \label{sec:experiments}
 
+For implementing and evaluating the proposed method, we developed a functional robust R-peak detector and PI phase tracker for both real-data and
+simulation-data analysis \cite{rt_eeg_proc_ekg_ilc}.  Especially for the real-data showcase, We only demonstrate the RRO-template canceller on records where reliable
+phase locking is available by our detection algorithm, and defer general-purpose phase tracking to future work.
+
 \subsection*{A. Real Ear-EEG Validation}
+In this subsection, we mainly use the two-channel ear-EEG configuration for
+discussion and analysis from the SeizeIT2 dataset. SeizeIT2 is a multicenter wearable epilepsy dataset containing long-duration multimodal recordings
+(behind-the-ear EEG, ECG, EMG, ACC, and GYR) with focal-seizure annotations across a large patient
+cohort \cite{seizeit2}. 
  
-\emph{R-peak locking and record selection.}
-On real recordings the phase reference is not given; we recover it from the raw ECG with a
-min/max-envelope tracker feeding a PI-based phase-locked loop (Sec.~IV), which supplies the
-fiducials $\hat{t}_k$ that anchor the template. Because a heartbeat-phase-locked canceller is
-meaningful only where a heartbeat phase can be reliably established (Assumption~3), we restrict the
-real-data analysis to records on which the tracker attains stable locking, quantified by a low
-supervisor-flagged-beat fraction ($<\!\texttt{[X]}\%$) and a statistically significant R-locking
-test (below). Of $\texttt{[N]}$ ECG-bearing records screened, $\texttt{[M]}$ met this criterion and
-are analyzed here; the remainder---dominated by irregular rhythm or atypical, low-amplitude ECG
-morphology---fall outside the scope of a timing-only method and are reported separately.
-Fig.~\texttt{[LOCK]} shows a representative locked segment and the non-causal template
-$\hat{d}_r(p)$ of Eq.~(7).
- 
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\linewidth]{fig_real/fig_noncausal_cleanup.png}
+\caption{Non-causal repetitive CFA cancellation on a short SeizeIT2 segment
+(ds005873, sub-070, ses-01, run-20; EEG index.
+Top: chest ECG with detected R-peaks (green). Bottom: original (red) and non-causally cleaned (blue) ear-EEG.
+The repetitive template $\hat{d}_r(p)$ by (Eq.~\eqref{eq:ideal}) is estimated from the full recording session
+($N_r > 800$ beats).}
+\label{fig:noncausal_cleanup}
+\end{figure}
+
+Fig.~\ref{fig:noncausal_cleanup} shows the result of non-causal repetitive disturbance rejection to the
+SeizeIT2 segment: the template is average across $N_r = 851$ learnable beats, and the qualitative view of this figure shows 
+the repetitive structure of the CFA removal by the proposed method. 
+
 \emph{Template SNR via a phase-scramble null.}
+Since the true disturbance $d_r$ is unobservable on real recordings, we define template
+quality through a phase-scramble null SNR rather than a direct error to $d_r$.
 The ground-truth disturbance $d_r$ is unobservable, so we validate the template against a null that
 shares its statistics but destroys R-phase locking. Define the R-locked energy of a signal $z$ under
 a peak set $P$,
@@ -318,15 +345,19 @@ Q \;=\; \frac{\mathcal{E}_{\mathrm{true}}[y]}{\overline{\mathcal{E}_{\mathrm{scr
 \mathrm{SNR}_{\mathrm{tmpl}} = 10\log_{10} Q,
 \label{eq:Q}
 \end{equation}
-is the CFA energy standing above the RRO-removed noise floor, with the leakage cancelling between
-numerator and denominator; a bias-corrected artifact energy follows as
-$\mathcal{E}_{\mathrm{true}}-\overline{\mathcal{E}_{\mathrm{scr}}}$. Repeating the scramble $B$ times
-yields a null distribution and a $p$-value $p_Q=\tfrac1B\sum_b\mathbf{1}[\mathcal{E}^{(b)}_{\mathrm{scr}}
-\!\ge\!\mathcal{E}_{\mathrm{true}}]$. Across the selected records the template main lobe attains
-$\mathrm{SNR}_{\mathrm{tmpl}}=\texttt{[XX]}$~dB ($p<\texttt{[0.01]}$), confirming a genuine,
-well-estimated R-locked template rather than an averaging artifact. Fig.~\texttt{[SNR]}.
- 
-\emph{Coherence view.}
+is the CFA energy standing above the RRO-removed noise floor. Furthermore, we define the bias-corrected CFA RMS as the effectiveness of CFA removal:
+\begin{equation}
+A/SD = \frac{\sqrt{\max(\mathcal{E}_{\mathrm{true}}-\overline{\mathcal{E}_{\mathrm{scr}}},0)/L_{\mathrm{lobe}}}}{\mathrm{std}(y)}.
+\end{equation}
+Here $L_{\mathrm{lobe}}$ is the number of samples in the main-lobe window
+around the R-peak (default window: 50~ms pre and 150~ms post), and $SD=\mathrm{std}(y)$ is computed over
+the full preprocessed EEG segment used for that run. For the Fig.~1 example (sub-070, run-20, eeg=1), the metric reads
+$\mathrm{SNR}=28.80$~dB and $A/SD=1.061$, indicating a strong and clearly resolvable R-locked component.
+From the whole dataset, we could observe above 20dB $SNR_{\mathrm{tmpl}}$ spanning 319 runs from 36 subjects,
+with $A/SD\in[0.110,\,1.220]$ and mean $A/SD=0.557$, as a showcase of the proposed method's effectiveness. Again, robust R-peak/beat-phase estimation on arrhythmic or low-quality ECG, 
+and systematic characterization across the full dataset, are outside the scope of this work;
+
+ \emph{Coherence view.}
 Template fidelity does not imply that the artifact \emph{waveform} is predictable from the ECG.
 Fig.~\texttt{[COH]} contrasts two coherences on the R-locked window: (i) between the ECG and the raw
 ear-EEG, diluted toward zero by the neural background ($\mathrm{coh}\!\approx\!\texttt{[0.1]}$), and
@@ -347,21 +378,7 @@ holds.
  
 
 
-\begin{figure}[!t]
-\centering
-\includegraphics[width=\linewidth]{fig_real/fig_noncausal_cleanup.png}
-\caption{Non-causal repetitive CFA cancellation on a short SeizeIT2 segment
-(ds005873, sub-070, ses-01, run-20; EEG index 1).
-Top: chest ECG with detected R-peaks (green). Bottom: original (red) and non-causally cleaned (blue) ear-EEG.
-The repetitive template $\hat{d}_r(p)$ by (Eq.~\eqref{eq:ideal}) is estimated from the full recording session
-($N_r > 300$ beats).}
-\label{fig:noncausal_cleanup}
-\end{figure}
-Fig.~\ref{fig:noncausal_cleanup} shows the result of non-causal repetitive disturbance rejection to the
-SeizeIT2 segment: the template is built from the full
-5-minute recording ($N_r = 422$ learnable beats). Comparing the bottom panel of Fig.~\ref{fig:noncausal_cleanup}
-with the original trace in the same panel, the heartbeat-locked deflections are
-substantially reduced.
+
 
 Practically, as $N_r$ is limited number, it's worthy to go deeper
 to look from variance perspective, about what residual leakage remains in the template.
@@ -466,10 +483,12 @@ pp. 2172--2185, 2007.
 functional roles, and methodological considerations,'' \emph{NeuroImage}, vol. 197, pp. 502--511,
 2019.
 
-\bibitem{seizeit2} M. Bhagubai, C. Chatzichristos, L. Swinnen \emph{et al.}, ``SeizeIT2: a
-multicentre wearable dataset of long-term behind-the-ear EEG, ECG, EMG, and movement recordings
-from patients with focal epilepsy,'' OpenNeuro dataset ds005873, v1.1.0, 2024.
-doi:10.18112/openneuro.ds005873.v1.1.0.
+\bibitem{rt_eeg_proc_ekg_ilc} iBrainMind, ``rt\_eeg\_proc, ekg\_ilc branch,'' GitHub repository,
+\url{https://github.com/ibrainmind/rt_eeg_proc/tree/ekg_ilc}, accessed: 2026-08-05.
+
+\bibitem{seizeit2} M. Bhagubai, C. Chatzichristos, L. Swinnen \emph{et al.}, ``SeizeIT2: wearable
+dataset of patients with focal epilepsy,'' \emph{Scientific Data}, vol. 12, art. 1228, 2025.
+OpenNeuro dataset: ds005873.
 
 \end{thebibliography}
 
