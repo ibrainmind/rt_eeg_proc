@@ -84,6 +84,35 @@ def _lobe_slice(ra: int, fs: float, lobe_pre_s: float, lobe_post_s: float):
     return slice(lo, hi)
 
 
+def apply_template_noncausal(
+    y: np.ndarray,
+    r_samples: np.ndarray,
+    template: np.ndarray,
+    ra: int,
+) -> np.ndarray:
+    """Apply non-causal template subtraction on y using beat-aligned averaging.
+
+    If template contributions overlap (close beats), average contributions before subtracting.
+    """
+    N = len(y)
+    Lw = len(template)
+    acc = np.zeros(N, dtype=float)
+    cnt = np.zeros(N, dtype=float)
+
+    for fid in r_samples.astype(int):
+        base = int(fid) - ra
+        for o in range(Lw):
+            k = base + o
+            if 0 <= k < N:
+                acc[k] += template[o]
+                cnt[k] += 1.0
+
+    pred = np.zeros(N, dtype=float)
+    m = cnt > 0
+    pred[m] = acc[m] / cnt[m]
+    return y - pred
+
+
 def run_cfa_metric(
     y: np.ndarray,
     r: np.ndarray,
@@ -118,6 +147,8 @@ def run_cfa_metric(
         "e_scr_mean": np.nan, "e_scr_p95": np.nan, "p_value": np.nan,
         "a_cfa_over_sd": np.nan, "cfa_power_fraction": np.nan,
         "lobe_slice": _lobe_slice(ra, fs, lobe_pre_s, lobe_post_s),
+        "ra": ra,
+        "r_samples": r_samples,
     }
     if n_beats < 5:
         return result   # not enough beats to average / scramble meaningfully
@@ -182,9 +213,164 @@ def discover_runs(dataset_root: Path, subject: str, session: str) -> list[str]:
             continue
         run = m.group(1)
         ecg = ecg_dir / f"{subject}_{session}_task-szMonitoring_run-{run}_ecg.edf"
-        if ecg.exists():
+        if ecg.exists() or ecg.is_symlink():   # is_symlink catches un-pulled annex pointers
             runs.append(run)
     return runs
+
+
+def discover_subjects(dataset_root: Path, session: str = "ses-01") -> list[str]:
+    """Return all sub-XXX folders that have at least one valid run for the given session."""
+    subs = sorted(p.name for p in dataset_root.iterdir()
+                  if p.is_dir() and p.name.startswith("sub-"))
+    return [s for s in subs if discover_runs(dataset_root, s, session)]
+
+
+def scan_subjects(
+    dataset_root: str = "ds005873",
+    session: str = "ses-01",
+    runs: list[str] | None = None,
+    eeg_indices: list[int] | None = None,
+    ecg_index: int = 0,
+    snr_threshold_db: float = 3.0,
+    pull: bool = True,
+    highpass_hz: float | None = 0.5,
+    notch_hz: float | None = 50.0,
+    duration_sec: float | None = 600.0,
+    n_scramble: int = 200,
+) -> list[dict]:
+    """Scan all subjects x eeg_indices x runs and return rows exceeding snr_threshold_db.
+
+    Returns a list of dicts: subject, run, eeg_index, snr_db, n_beats, a_cfa_over_sd, p_value.
+    Prints a summary table to stdout.
+    """
+    if eeg_indices is None:
+        eeg_indices = [0, 1]
+
+    root = _resolve_dataset_root(dataset_root)
+    subjects = discover_subjects(root, session)
+    if not subjects:
+        print("No subjects found in", root)
+        return []
+
+    print(f"Scanning {len(subjects)} subjects, EEG indices {eeg_indices}, "
+          f"SNR threshold {snr_threshold_db:.1f} dB")
+    print(f"{'subject':<12} {'run':<6} {'eeg':>4}  {'beats':>6}  {'SNR (dB)':>9}  "
+          f"{'A/SD':>7}  {'p':>6}  {'pass':>5}")
+    print("-" * 65)
+
+    hits: list[dict] = []
+    for sub in subjects:
+        sub_runs = runs if runs else discover_runs(root, sub, session)
+        for run in sub_runs:
+            for ei in eeg_indices:
+                try:
+                    y, r, fs, label = load_eeg_ecg(
+                        root, sub, session, run, ei, ecg_index, pull,
+                        highpass_hz, notch_hz, 0.0, duration_sec,
+                    )
+                    m = run_cfa_metric(y, r, fs, label=label, n_scramble=n_scramble)
+                    snr = m["snr_db"]
+                    passed = np.isfinite(snr) and snr >= snr_threshold_db
+                    print(f"{sub:<12} {run:<6} {ei:>4}  {m['n_beats']:>6}  "
+                          f"{snr:>9.2f}  {m['a_cfa_over_sd']:>7.3f}  "
+                          f"{m['p_value']:>6.3f}  {'YES' if passed else 'no':>5}")
+                    if passed:
+                        hits.append({
+                            "subject": sub, "run": run, "eeg_index": ei,
+                            "snr_db": snr, "n_beats": m["n_beats"],
+                            "a_cfa_over_sd": m["a_cfa_over_sd"],
+                            "cfa_power_fraction": m["cfa_power_fraction"],
+                            "p_value": m["p_value"],
+                        })
+                except Exception as e:
+                    print(f"{sub:<12} {run:<6} {ei:>4}  SKIPPED: {e}")
+
+    print("-" * 65)
+    print(f"Hits above {snr_threshold_db:.1f} dB: {len(hits)}")
+    for h in hits:
+        print(f"  {h['subject']}  run-{h['run']}  eeg={h['eeg_index']}  "
+              f"SNR={h['snr_db']:.2f} dB  A/SD={h['a_cfa_over_sd']:.3f}")
+    return hits
+
+
+def discover_subjects(dataset_root: Path, session: str = "ses-01") -> list[str]:
+    """Return all sub-XXX folders that have at least one valid run for the given session."""
+    subs = sorted(p.name for p in dataset_root.iterdir()
+                  if p.is_dir() and p.name.startswith("sub-"))
+    return [s for s in subs if discover_runs(dataset_root, s, session)]
+
+
+def scan_subjects(
+    dataset_root: str = "ds005873",
+    session: str = "ses-01",
+    runs: list[str] | None = None,
+    eeg_indices: list[int] | None = None,
+    ecg_index: int = 0,
+    snr_threshold_db: float = 3.0,
+    pull: bool = True,
+    highpass_hz: float | None = 0.5,
+    notch_hz: float | None = 50.0,
+    duration_sec: float | None = 600.0,
+    n_scramble: int = 200,
+) -> list[dict]:
+    """Scan all subjects x eeg_indices x runs and return rows exceeding snr_threshold_db.
+
+    Returns a list of dicts with keys: subject, run, eeg_index, snr_db, n_beats,
+    a_cfa_over_sd, cfa_power_fraction, p_value.
+    Prints a summary table to stdout.
+    """
+    if eeg_indices is None:
+        eeg_indices = [0, 1]
+    if runs is None:
+        runs_arg = None          # auto-discover per subject
+    else:
+        runs_arg = runs          # fixed list applied to every subject
+
+    root = _resolve_dataset_root(dataset_root)
+    subjects = discover_subjects(root, session)
+    if not subjects:
+        print("No subjects found in", root)
+        return []
+
+    print(f"Scanning {len(subjects)} subjects, EEG indices {eeg_indices}, "
+          f"SNR threshold {snr_threshold_db:.1f} dB")
+    print(f"{'subject':<12} {'run':<6} {'eeg':>4}  {'beats':>6}  {'SNR (dB)':>9}  "
+          f"{'A/SD':>7}  {'p':>6}  {'pass':>5}")
+    print("-" * 65)
+
+    hits: list[dict] = []
+    for sub in subjects:
+        sub_runs = runs_arg if runs_arg else discover_runs(root, sub, session)
+        for run in sub_runs:
+            for ei in eeg_indices:
+                try:
+                    y, r, fs, label = load_eeg_ecg(
+                        root, sub, session, run, ei, ecg_index, pull,
+                        highpass_hz, notch_hz, 0.0, duration_sec,
+                    )
+                    m = run_cfa_metric(y, r, fs, label=label, n_scramble=n_scramble)
+                    snr = m["snr_db"]
+                    passed = np.isfinite(snr) and snr >= snr_threshold_db
+                    print(f"{sub:<12} {run:<6} {ei:>4}  {m['n_beats']:>6}  "
+                          f"{snr:>9.2f}  {m['a_cfa_over_sd']:>7.3f}  "
+                          f"{m['p_value']:>6.3f}  {'YES' if passed else 'no':>5}")
+                    if passed:
+                        hits.append({
+                            "subject": sub, "run": run, "eeg_index": ei,
+                            "snr_db": snr, "n_beats": m["n_beats"],
+                            "a_cfa_over_sd": m["a_cfa_over_sd"],
+                            "cfa_power_fraction": m["cfa_power_fraction"],
+                            "p_value": m["p_value"],
+                        })
+                except Exception as e:
+                    print(f"{sub:<12} {run:<6} {ei:>4}  SKIPPED: {e}")
+
+    print("-" * 65)
+    print(f"Hits above {snr_threshold_db:.1f} dB: {len(hits)}")
+    for h in hits:
+        print(f"  {h['subject']}  run-{h['run']}  eeg={h['eeg_index']}  "
+              f"SNR={h['snr_db']:.2f} dB  A/SD={h['a_cfa_over_sd']:.3f}")
+    return hits
 
 
 def load_eeg_ecg(
@@ -219,6 +405,73 @@ def load_eeg_ecg(
     return y[m], r[m], fs, label
 
 
+def plot_run_contrast(
+    y: np.ndarray,
+    r: np.ndarray,
+    fs: float,
+    r_samples: np.ndarray,
+    template: np.ndarray,
+    ra: int,
+    title: str,
+    out: str | None = None,
+    show: bool = False,
+    window_start_sec: float = 0.0,
+    window_duration_sec: float = 30.0,
+):
+    """Plot axis-aligned ECG/EEG with EEG contrast before/after template removal."""
+    import matplotlib
+    if not show:
+        matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    y_clean = apply_template_noncausal(y, r_samples, template, ra)
+    n = min(len(y), len(r), len(y_clean))
+    y = y[:n]
+    r = r[:n]
+    y_clean = y_clean[:n]
+
+    t = np.arange(n, dtype=float) / float(fs)
+    a = max(0.0, float(window_start_sec))
+    b = min(t[-1], a + max(1e-6, float(window_duration_sec)))
+    m = (t >= a) & (t <= b)
+
+    t_win = t[m]
+    y_win = y[m]
+    y_clean_win = y_clean[m]
+    r_win = r[m]
+
+    fig, ax = plt.subplots(2, 1, figsize=(12, 6), sharex=True)
+
+    # Top: ECG reference (axis aligned to EEG in time)
+    ax[0].plot(t_win, r_win, lw=0.9, color="tab:red")
+    ax[0].set_title(f"ECG reference (aligned): {title}")
+    ax[0].set_ylabel("ECG (a.u.)")
+    ax[0].grid(alpha=0.3)
+
+    # Bottom: before/after overlay
+    ax[1].plot(t_win, y_win * 1e6, lw=0.8, alpha=0.6, color="tab:blue", label="before")
+    ax[1].plot(t_win, y_clean_win * 1e6, lw=0.8, alpha=0.9, color="tab:red", label="after")
+    ax[1].set_title("EEG contrast: before (blue) vs after (red) non-causal template removal")
+    ax[1].set_ylabel("EEG (uV)")
+    ax[1].set_xlabel("time (s)")
+    ax[1].legend(fontsize=8)
+    ax[1].grid(alpha=0.3)
+
+    # Mark learnable R-peaks inside the shown window.
+    for fid in r_samples.astype(int):
+        tt = fid / float(fs)
+        if a <= tt <= b:
+            ax[0].axvline(tt, color="0.4", lw=0.4, alpha=0.25)
+
+    fig.tight_layout()
+    if out:
+        Path(out).parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out, dpi=120)
+        print("wrote", out)
+    if not show:
+        plt.close(fig)
+
+
 def subject_cfa_metrics(
     dataset_root: str = "ds005873",
     subject: str = "sub-001",
@@ -232,9 +485,28 @@ def subject_cfa_metrics(
     start_sec: float = 0.0,
     duration_sec: float | None = 600.0,
     n_scramble: int = 200,
+    plot_contrast: bool = False,
+    contrast_outdir: str = "outputs/contrast_runs",
+    contrast_window_sec: float = 30.0,
+    contrast_window_start_sec: float = 0.0,
+    show: bool = False,
 ) -> list[dict]:
     """Run the CFA metric on every run of one subject. Returns a list of per-run dicts."""
     root = _resolve_dataset_root(dataset_root)
+    if runs:
+        # Treat sentinel tokens as auto-discovery, and normalize explicit run IDs.
+        tokens = [str(r).strip() for r in runs if str(r).strip()]
+        lowered = {t.lower() for t in tokens}
+        if lowered & {"discover", "auto", "all", "*"}:
+            runs = None
+        else:
+            norm = []
+            for t in tokens:
+                tl = t.lower()
+                if tl.startswith("run-"):
+                    t = t[4:]
+                norm.append(t)
+            runs = norm
     if runs is None:
         runs = discover_runs(root, subject, session)
         if not runs:
@@ -252,6 +524,25 @@ def subject_cfa_metrics(
             print("  %-8s beats=%4d  SNR=%6.2f dB  A_cfa/SD=%.3f  f=%.3f  p=%.3f"
                   % (f"run-{run}", m["n_beats"], m["snr_db"],
                      m["a_cfa_over_sd"], m["cfa_power_fraction"], m["p_value"]))
+
+            if plot_contrast and m["n_beats"] >= 5:
+                contrast_path = (
+                    Path(contrast_outdir)
+                    / f"{subject}_{session}_run-{run}_contrast.png"
+                )
+                plot_run_contrast(
+                    y=y,
+                    r=r,
+                    fs=fs,
+                    r_samples=m["r_samples"],
+                    template=m["template"],
+                    ra=m["ra"],
+                    title=f"{subject}/{session}/run-{run}",
+                    out=str(contrast_path),
+                    show=show,
+                    window_start_sec=contrast_window_start_sec,
+                    window_duration_sec=contrast_window_sec,
+                )
         except Exception as e:
             print("  run-%s SKIPPED: %s" % (run, e))
     return out
@@ -314,9 +605,8 @@ def plot_subject_cfa(metrics: list[dict], subject: str = "", out: str | None = N
         Path(out).parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(out, dpi=120)
         print("wrote", out)
-    if show:
-        plt.show()
-    plt.close(fig)
+    if not show:
+        plt.close(fig)
 
 
 # ---------------------------------------------------------------------------
@@ -327,9 +617,24 @@ def main():
     ap.add_argument("--dataset-root", default="ds005873")
     ap.add_argument("--subject", default="sub-001")
     ap.add_argument("--session", default="ses-01")
-    ap.add_argument("--runs", nargs="*", default=None, help="explicit run ids; default = discover")
+    ap.add_argument(
+        "--runs",
+        nargs="*",
+        default=None,
+        help=(
+            "explicit run ids (e.g., 01 02 or run-01 run-02); "
+            "use 'discover' (or omit) to auto-discover available runs"
+        ),
+    )
     ap.add_argument("--eeg-index", type=int, default=1)
     ap.add_argument("--ecg-index", type=int, default=0)
+    # --- scan mode ---
+    ap.add_argument("--scan", action="store_true", default=False,
+                    help="scan all subjects x EEG indices, print those above --snr-threshold")
+    ap.add_argument("--eeg-indices", type=int, nargs="+", default=[0, 1],
+                    help="EEG indices to test in --scan mode (default: 0 1)")
+    ap.add_argument("--snr-threshold", type=float, default=3.0,
+                    help="minimum SNR dB to flag as a hit in --scan mode (default: 3.0)")
     ap.add_argument("--pull", action=argparse.BooleanOptionalAction, default=True)
     ap.add_argument("--highpass-hz", type=float, default=0.5)
     ap.add_argument("--notch-hz", type=float, default=50.0)
@@ -338,7 +643,31 @@ def main():
     ap.add_argument("--n-scramble", type=int, default=200)
     ap.add_argument("--out", default=None)
     ap.add_argument("--show", action=argparse.BooleanOptionalAction, default=False)
+    ap.add_argument("--plot-contrast", action=argparse.BooleanOptionalAction, default=False,
+                    help="write one per-run ECG/EEG aligned contrast plot (before/after template removal)")
+    ap.add_argument("--contrast-outdir", default="outputs/contrast_runs",
+                    help="output folder for per-run contrast plots")
+    ap.add_argument("--contrast-window-sec", type=float, default=30.0,
+                    help="time span in seconds per contrast plot")
+    ap.add_argument("--contrast-window-start-sec", type=float, default=0.0,
+                    help="start time (seconds) within each loaded segment for contrast plotting")
     args = ap.parse_args()
+
+    if args.scan:
+        scan_subjects(
+            dataset_root=args.dataset_root,
+            session=args.session,
+            runs=args.runs,
+            eeg_indices=args.eeg_indices,
+            ecg_index=args.ecg_index,
+            snr_threshold_db=args.snr_threshold,
+            pull=args.pull,
+            highpass_hz=args.highpass_hz,
+            notch_hz=args.notch_hz,
+            duration_sec=args.duration_sec,
+            n_scramble=args.n_scramble,
+        )
+        return
 
     print("subject %s: computing CFA metric across runs" % args.subject)
     metrics = subject_cfa_metrics(
@@ -346,9 +675,17 @@ def main():
         runs=args.runs, eeg_index=args.eeg_index, ecg_index=args.ecg_index,
         pull=args.pull, highpass_hz=args.highpass_hz, notch_hz=args.notch_hz,
         start_sec=args.start_sec, duration_sec=args.duration_sec, n_scramble=args.n_scramble,
+        plot_contrast=args.plot_contrast,
+        contrast_outdir=args.contrast_outdir,
+        contrast_window_sec=args.contrast_window_sec,
+        contrast_window_start_sec=args.contrast_window_start_sec,
+        show=args.show,
     )
     out = args.out if args.out else (None if args.show else "cfa_overview.png")
     plot_subject_cfa(metrics, subject=args.subject, out=out, show=args.show)
+    if args.show:
+        import matplotlib.pyplot as plt
+        plt.show()
 
 
 if __name__ == "__main__":

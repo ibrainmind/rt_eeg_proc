@@ -364,7 +364,7 @@ def fig2_noncausal_cleanup(
                              gridspec_kw={"height_ratios": [1, 2]})
 
     # Top: ECG with R-peak marks.
-    axes[0].plot(t_disp, ecg_disp, lw=0.9, color="C3", label=ecg_name)
+    axes[0].plot(t_disp, ecg_disp, lw=0.9, color="C2", label=ecg_name)
     if r_times.size > 0:
         r_vals = np.interp(r_times, t_disp, ecg_disp)
         axes[0].scatter(r_times, r_vals, s=14, color="k", zorder=4, label="R peaks")
@@ -373,11 +373,11 @@ def fig2_noncausal_cleanup(
     axes[0].legend(loc="upper right")
     axes[0].grid(alpha=0.25)
 
-    # Bottom: raw and cleaned EEG 2 overlaid.
-    axes[1].plot(t_disp, eeg2_disp,  lw=0.8, color="C1",   label="original",        alpha=0.75)
-    axes[1].plot(t_disp, eeg2_clean, lw=1.0, color="C2",   label=f"cleaned (N_r={n_r})")
+    # Bottom: raw and cleaned EEG overlaid.
+    axes[1].plot(t_disp, eeg2_disp,  lw=0.8, color="C3",   label="original",        alpha=0.75)
+    axes[1].plot(t_disp, eeg2_clean, lw=1.0, color="C0",   label=f"cleaned (N_r={n_r})")
     axes[1].set_ylabel("V")
-    axes[1].set_title(f"EEG 2: {eeg2_name}")
+    axes[1].set_title(f"EEG channel: {eeg2_name}")
     axes[1].set_xlabel("Time (s)")
     axes[1].legend(loc="upper right")
     axes[1].grid(alpha=0.25)
