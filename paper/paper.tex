@@ -51,14 +51,14 @@ Centre for Addiction and Mental Health, Toronto, Ontario, Canada;
 
 \begin{abstract}
 Continuous wearable EEG is increasingly paired with consumer wearables that provide a 
-heartbeat stream (e.g., smartwatch ECG/PPG). Taking the available ECG/heartbeat reference, we propose a 
+heartbeat stream (e.g., smartwatch ECG/PPG). Given the available ECG/heartbeat reference, we propose a 
 repetitive-control framework that models cardiac artifact as a heartbeat-aligned periodic 
 disturbance. Each EEG sample is assigned a cardiac phase index wrapped around ECG R-peaks; 
-phase-synchronous averaging then preserves heartbeat-correlated residue while attenuating 
+phase-synchronous averaging then preserves heartbeat-correlated component while attenuating 
 non-phase-locked noise. Subtracting this phase-indexed average yields effective artifact removal in 
 the non-causal offline setting. For online real-time operation, an iterative-learning estimator is 
-used to track the residue in either a same-beat predictive mode (strict causal) or a one-beat-delayed 
-mode (buffered causal). The effectiveness of proposed methods is demonstrated through both real and semi-synthetic data experiments.
+used to track the disturbance estimate in either a same-beat predictive mode (strict causal) or a one-beat-delayed 
+mode (buffered causal). The effectiveness of the proposed methods is demonstrated through both real and semi-synthetic data experiments.
 \end{abstract}
 
 % ===========================================================================
@@ -69,10 +69,10 @@ Wearable EEG is moving toward continuous, day-scale monitoring, and many users a
 device that provides heartbeat timing from ECG or PPG. This creates a practical path for low-channel 
 ear-EEG denoising: use heartbeat timing already available from the wearable ecosystem rather than 
 requiring additional EEG channels. In ear-centered montages, cardiac field artifact (CFA) is often 
-prominent because electrodes are close to neck and vascular pathways. CFA is the volume-conducted 
+prominent because electrodes are close to neck and vascular pathways. As one of the primary contaminations in wearable ear-EEG, 
+CFA is the volume-conducted 
 electrical field of the heart \cite{dirlich1997}, distinct from the scanner-related 
-ballistocardiogram artifact emphasized in EEG-fMRI work \cite{niazy2005}. For out-of-
-scanner earables, CFA is therefore a primary contamination mechanism.
+ballistocardiogram artifact emphasized in EEG-fMRI work \cite{niazy2005}. 
 
 Classical ECG-referenced adaptive cancellation is well established \cite{widrow1975}, and it is a 
 natural baseline. However, in our target regime it faces two practical limits: earables are 
@@ -80,11 +80,9 @@ channel-starved for blind source separation \cite{jung2000}, and reference-to-ar
 waveform predictability can be weak under real volume-conduction mismatch and nonstationarity. Our 
 real-data observations in this paper support exactly this 
 point: coherence between ECG and ear-EEG 
-artifact is diluted with beat-synchronous pooling, so reference-driven waveform regression 
-is limited as a primary mechanism. At the same time, beat timing remains highly informative, because 
-the artifact is still phase-locked to R-peaks.
-
-This motivates a timing-only control view: model cardiac contamination as a repetitive disturbance and 
+artifact is diluted even after beat-synchronous pooling, so reference-driven waveform regression 
+has limited CFA removal capability. At the same time, beat timing remains highly informative, because 
+the artifact is still phase-locked to R-peaks. This motivates a timing-only control view: model cardiac contamination as a repetitive disturbance and 
 reject it by heartbeat phase indexing. Repetitive control and iterative learning control (ILC) are 
 mature tools for periodic disturbance rejection in mechatronics \cite{hara1988}, 
 and they map naturally to the heartbeat cycle when reliable beat timing is available. In this work, 
@@ -96,7 +94,7 @@ separate wearable.
 
 The rest of this paper is organized as follows. Section~\ref{sec:problem_formulation} states the
 signal model and timing-only CFA-removal problem. Section~\ref{sec:noncausal_repetitive_rejection}
-develops repetitive template cancellation in non-causal and causal forms. Section~\ref{sec:real_eeg_validation}
+develops repetitive template cancellation in non-causal and causal forms. Section~\ref{sec:experiments}
 reports experiments on real ear-EEG and semi-synthetic data. Section~\ref{sec:conclusion}
 summarizes the main findings and practical implications.
 
@@ -106,7 +104,7 @@ summarizes the main findings and practical implications.
 \section{Problem Formulation}
 \label{sec:problem_formulation}
 
-Following repetitive-control modeling conventions \cite{hara1988,longman2000}, we model 
+Following repetitive-control modeling conventions \cite{hara1988}\cite{longman2000}, we model 
 the measured ear-EEG signal as
 \begin{equation}
 y(t) = s(t) + d_r(t) + n(t),
@@ -122,9 +120,9 @@ T_k = t_{k+1} - t_k,
 \end{equation}
 where $t_k$ is the $k$-th detected R-peak instant.
 
-\begin{assumption}\label{asm:cfa_dominant}s
+\begin{assumption}\label{asm:cfa_dominant}
 In ear-EEG, CFA is dominated by the repetitive component $d_r(t)$. The R-peak
-phase-asynchronous disturbances and noise $n(t)$ are assumed zero-mean across the R-peak sync averaging, and DC offset and slow drift are removed
+phase-asynchronous disturbances and noise $n(t)$ are assumed zero-mean under the R-peak-synchronous averaging, and DC offset and slow drift are removed
 by preprocessing.
 \end{assumption}
 
@@ -132,7 +130,7 @@ by preprocessing.
 The neural signal of interest $s(t)$ is not
 phase-locked to the R-peak: across beats, its phase relative to the cardiac cycle is effectively
 uniform. Consequently $s(t)$ is preserved by the proposed
-phase-synchronous repetitive runout cancellation, more detailed analysis is provided in Sec.~\ref{sec:noncausal_repetitive_rejection}.
+phase-synchronous repetitive run-out (RRO) cancellation. More detailed analysis is provided in Sec.~\ref{sec:noncausal_repetitive_rejection}.
 \end{assumption}
 
 Using heartbeat phase, we represent the repetitive disturbance as a phase-indexed waveform
@@ -162,14 +160,14 @@ estimated from the R-peak-locked structure of $y(t)$ alone.
 Since $d_r(\phi(t))$ is periodic in the cardiac phase $\phi(t)$ indexed solely by R-peak instants
 $\{t_k\}$, Problem~\ref{prob:cfa_removal} depends only on R-peak \emph{timing} and never on the
 ECG waveform shape. Consequently, any wearable heartbeat source---smartwatch ECG, wrist
-PPG, or any device delivering beat timing via a synchronisation mechanism---is sufficient to
+PPG, or any device delivering beat timing via a synchronization mechanism---is sufficient to
 instantiate the solution.
 \end{noteenv}
 
 \begin{noteenv}\label{note:hep}
 In reality, $s(t)$ may contain a phase-synchronous part 
-that has non-zero expection mean value across beats, e.g. the heartbeat-evoked potential (HEP)---a genuine cortical
-response time-locked to the cardiac cycle may or may not be absorbed into $\hat{d}_r$.
+that has non-zero mean value across beats, e.g. the heartbeat-evoked potential (HEP)---a genuine cortical
+response time-locked to the cardiac cycle. This HEP component may or may not be absorbed into $\hat{d}_r$.
 In this paper, we make no claim that the solution of Eq.~\ref{eq:cfa_goal} preserves the phase-synchronous part of the neural signals, and it's 
 a meaningful future work or extension worthy of further investigation. 
 \end{noteenv}
@@ -180,7 +178,7 @@ To instantiate Problem~\ref{prob:cfa_removal} on the discrete sample grid, let $
 the estimated $k$-th R-peak sample instant and $f_s$ the sampling rate. The $k$-th beat's
 R-peak-aligned $d_r(\phi(t))$ at integer offset $p$ is defined as
 \begin{equation}
-d_k\!\left(\hat{t}_k + \frac{p}{f_s}\right)  \triangleq  d_k(\phi_p),
+d_r^{(k)}\!\left(\hat{t}_k + \frac{p}{f_s}\right)  \triangleq  d_r^{(k)}(\phi_p),
 \label{eq:dk_def}
 \end{equation}
 with the discrete phase index and offset range
@@ -193,11 +191,16 @@ p \in \{-n_{\mathrm{pre}},\ldots,-1,0,1,\ldots,n_{\mathrm{post}}\}.
 \end{gather}
 \end{subequations}
 
+\begin{noteenv}\label{note:tk_slowly_varying_assumption}
+In Eq.~\eqref{eq:phase_sample_map}, we will drop the explicit $T_k$ dependence in $\phi_p$ as 
+ $T_k$ is slowly varying by Assumption~\ref{asm:rpeak_T_varying}, and the phase grid $p$ in Eq.~\eqref{eq:phase_index_set}
+  is approximately shared across beats. 
+\end{noteenv}
+
 \begin{noteenv}\label{note:template_window_choice}
 The template window spans $n_t = n_{\mathrm{pre}} + n_{\mathrm{post}} + 1$ samples ($p=0$ at the
-R-peak). A practical choice is $n_{\mathrm{pre}} = \lfloor 0.05\,f_s \rfloor$ (50~ms, covering QRS
-onset) and $n_{\mathrm{post}} = \lfloor 0.55\,f_s \rfloor$ (550~ms, covering the full QRS-T complex);
-at $f_s = 250$~Hz this gives $n_t = 151$ samples.
+R-peak). A practical choice is $n_{\mathrm{pre}} = \lfloor 0.05\,f_s \rfloor$ and $n_{\mathrm{post}} = \lfloor 0.55\,f_s \rfloor$ , covering QRS
+onset and the full QRS-T complex by 600ms total duration.
 \end{noteenv}
 
 % ===========================================================================
