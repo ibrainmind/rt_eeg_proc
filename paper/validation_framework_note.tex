@@ -1,0 +1,221 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=black,urlcolor=blue]{hyperref}
+\usepackage{titlesec}
+\usepackage{parskip}
+
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.6em}{}
+
+\newcommand{\Elock}{\mathcal{E}}
+\newcommand{\true}{\mathrm{true}}
+\newcommand{\scr}{\mathrm{scr}}
+\newcommand{\Neff}{N_{\mathrm{eff}}}
+\newcommand{\shat}{\widehat{s}}
+\newcommand{\dhat}{\widehat{d}}
+
+\title{\vspace{-2em}\bfseries Reference-Free Validation of Repetitive CFA Cancellation\\
+via an R-Phase Scramble Null, and a Cross-Subject Protocol for SeizeIT2}
+\author{Working note for the CFA ear-EEG paper}
+\date{\today}
+
+\begin{document}
+\maketitle
+\vspace{-1.5em}
+
+\noindent
+\textbf{The problem this solves.} There is no direct error feedback for the cancellation. The
+disturbance $d_r(t)$ is never observed in isolation ($y=s+d_r+n$), coherence to the ECG is diluted
+to near zero, and the FIR fit needs a clean $d_r$ target that does not exist. So we cannot validate
+by comparing to a reference. This note builds a validation loop that needs \emph{no} reference and
+\emph{no} ground truth: it uses the one property that defines $d_r$ --- coherence with the true
+R-peak phase and nothing else --- and measures everything as a contrast against a
+phase-\emph{scrambled} null. Section~\ref{sec:cohort} then scales this across SeizeIT2 subjects.
+
+\section{The scramble null is the only available handle}
+
+The single fact that separates $d_r$ from all other terms is that it is phase-locked to the true
+R-peak instants $\{t_k\}$, while $s$ and $n$ are not. Averaging on the true peaks versus a
+phase-destroying scramble $\{t_k^{\scr}\}$ gives
+\begin{equation}
+\dhat_\true(p) = d_r(p) + \ell(p), \qquad
+\dhat_\scr(p) = 0 + \ell(p),
+\label{eq:twotemplates}
+\end{equation}
+where $\ell(p)$ is the finite-record leakage of the asynchronous part, with
+$\|\ell\|\sim \mathrm{SD}/\sqrt{\Neff}$. The scrambled template is therefore a \emph{direct
+measurement of the leakage floor} --- the denominator we otherwise could only derive. We have no
+ground-truth $d_r$, but we have a ground-truth \emph{null}, and that is sufficient to build every
+metric below.
+
+\subsection*{The R-phase-locked energy operator}
+For any signal $z(t)$ and any peak set $P$, define the template energy
+\begin{equation}
+\Elock_P[z] \;=\; \Bigl\|\, \tfrac{1}{|P|}\!\sum_{k\in P} z\!\left(t_k + p/f_s\right) \Bigr\|_2^2
+\quad\text{(sum over template window } p=-n_{\mathrm{pre}}\ldots n_{\mathrm{post}}).
+\label{eq:Eop}
+\end{equation}
+This is ``how much R-locked energy $z$ carries under peak set $P$.'' Every metric is a ratio of
+this operator under true vs.\ scrambled peaks. Because a single scramble is one draw, we repeat it
+$B$ times ($B\sim200$--$1000$ random scrambles) to obtain a null \emph{distribution}
+$\{\Elock_{\scr}^{(b)}\}$, which converts each ratio into a $p$-value rather than a bare number.
+
+\section{Three metrics (plus a safety guard)}
+
+\subsection*{Metric 1 --- Locking ratio $Q$: was there anything to cancel?}
+On the raw measurement $y$,
+\begin{equation}
+Q \;=\; \frac{\Elock_\true[y]}{\overline{\Elock_\scr[y]}},
+\qquad
+p_Q = \frac{1}{B}\sum_{b=1}^{B}\mathbf{1}\!\left[\Elock_{\scr}^{(b)}[y] \geq \Elock_\true[y]\right].
+\end{equation}
+$Q\gg1$ (with small $p_Q$) certifies a genuine R-locked deflection above the leakage floor: the
+template is real CFA/HEP, not averaged noise. This is the answer to ``how do I know I am not
+cancelling nothing.'' Since $\Elock_\scr[y]=\mathrm{SD}^2/\Neff$, this step also \emph{measures}
+$\Neff$ directly.
+
+\subsection*{Metric 2 --- Suppression $S$ and residual locking $Q'$: was it removed?}
+After cancellation $\shat = y - \dhat_\true$, re-apply the operator to the \emph{residual}:
+\begin{equation}
+S \;=\; 1 - \frac{\Elock_\true[\shat]}{\Elock_\true[y]}
+\qquad\text{(fraction of R-locked energy removed)},
+\end{equation}
+\begin{equation}
+Q' \;=\; \frac{\Elock_\true[\shat]}{\overline{\Elock_\scr[\shat]}}
+\qquad\text{(residual R-locked energy vs.\ floor)}.
+\end{equation}
+Complete cancellation drives $Q'\to 1$: the R-synced residual template becomes statistically
+indistinguishable from the async one. This is the formal version of ``the R-sync and async
+residuals show the same trend.'' The gap $Q'-1$ is the \emph{uncancelled R-locked fraction} --- a
+self-contained error signal requiring no reference. Report $S$ with an error bar from the null:
+the floor $\overline{\Elock_\scr[y]}$ and its spread give the noise band on $S$, so
+$S = 0$ falls inside the null and $S\to S_{\max}$ at the floor.
+
+\subsection*{Metric 3 --- Neural-preservation guard: was $s(t)$ spared?}
+Metrics 1--2 live on the R-locked axis only. To confirm $s$ was not damaged, compare band power
+(e.g.\ alpha 8--12\,Hz) before vs.\ after in the async projection:
+\begin{equation}
+\Delta_\alpha = \frac{P_\alpha[\shat] - P_\alpha[y]}{P_\alpha[y]},
+\qquad \text{require } |\Delta_\alpha| \lesssim 1/\sqrt{\Neff}.
+\end{equation}
+A notch here ($\Delta_\alpha \ll 0$) signals over-cancellation --- eaten HEP, or phase-scrambled
+leakage injected when $\Neff$ is small. This guard keeps Metric 2 honest: forcing $Q'\to1$ by brute
+force could damage $s$, and $\Delta_\alpha$ catches it.
+
+\subsection*{The headline number}
+$S$ is the metric to report: reference-free, no coherence, no clean $d_r$, bounded and
+interpretable ($0$ = nothing removed, $1$ = removed to the floor), with a null-derived error bar.
+$Q$ certifies the target existed; $Q'$/$S$ certify removal; $\Delta_\alpha$ certifies safety.
+
+\section{How to scramble (this makes or breaks the null)}
+
+The null is valid only if the scramble destroys R-phase-locking while preserving \emph{everything
+else} (beat count, interval distribution, spectral content). Three constructions, with different
+uses:
+\begin{itemize}[leftmargin=1.4em,itemsep=3pt]
+\item \textbf{Circular time-shift} (primary): shift the whole peak train by a random offset
+$\gg$ one RR interval. Preserves the inter-beat-interval sequence \emph{exactly} (including the
+RSA correlation structure), destroys absolute phase. Its floor therefore reflects the realistic
+$\Neff$ you actually have. Use as the default null.
+\item \textbf{Interval shuffle}: permute RR intervals and rebuild peaks. Also destroys RSA
+correlation, so it \emph{over}-estimates $\Neff$ (ideal-independence floor). Use to bracket the
+best case, not to set the operating floor.
+\item \textbf{Phase-jitter}: add growing noise to true peaks for a \emph{dose-response} curve
+(locking strength vs.\ jitter) --- a clean robustness figure and a direct probe of timing
+sensitivity.
+\end{itemize}
+Report the circular-shift null as primary and build the $B$-sample distribution from it, so every
+$Q, S, Q'$ carries a $p$-value.
+
+\section{The honest limit: R-locked $\neq$ cardiac-field}
+
+This framework validates removal of the \emph{R-locked} component and \emph{cannot} separate CFA
+from the heartbeat-evoked potential (HEP): both are phase-coherent with the R-peak, so both enter
+$\Elock_\true$ and both are removed. The scramble certifies ``R-locked energy removed,'' not
+``cardiac-field energy removed.'' Splitting those still needs the latency argument (CFA
+QRS-synchronous near $p=0$; HEP at $200$--$600$\,ms) and the FIR-residual test --- not the
+scramble. State $S$ as R-locked suppression, and hand the CFA-vs-HEP axis to the other tool.
+
+\section{Cross-subject validation on SeizeIT2}
+\label{sec:cohort}
+
+The single-subject result (sub-001) makes $Q$ and $S$ \emph{anecdotes}. The generalization claim
+the paper needs is the \emph{distribution} of $Q$ and $S$ across a representative cohort. This is
+also the correct scope for a conference paper: a stratified subset, not all 2850 recordings.
+
+\subsection*{5.1 The confound that matters most: ECG$\to$EEG cross-device timing}
+SeizeIT2 records EEG on the behind-the-ear SD module and ECG on a \emph{separate} chest SD module,
+each with its own clock; the dataset paper documents inter-device clock drift and non-exact
+sampling corrected by cross-correlation against full-scalp EEG. For a \emph{timing-anchored}
+method this is not incidental: any residual ECG$\to$EEG misalignment or drift is
+\emph{indistinguishable from weak locking} --- it directly lowers $Q$ and caps $S$. Before trusting
+any per-subject number:
+\begin{enumerate}[leftmargin=1.4em,itemsep=2pt]
+\item Verify (or re-estimate) ECG--EEG sample alignment per recording; correct residual drift.
+\item Use the null as automatic QC: a recording with broken alignment shows $Q\approx1$
+(no locking) even though CFA is physically present. Flag low-$Q$ recordings and inspect
+\emph{alignment} before concluding ``weak CFA.'' The scramble test doubles as a timing-integrity
+check across the cohort --- a genuinely useful by-product.
+\end{enumerate}
+
+\subsection*{5.2 Stratification}
+CFA magnitude depends on electrode geometry and population. Stratify and report within strata, do
+not pool blindly:
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt]
+\item \textbf{Center} (5 EMUs): equipment/montage practice varies.
+\item \textbf{Montage/channel}: same-side (left/right) vs.\ cross-head vs.\ generalized lateral.
+CFA scales with proximity to neck vasculature, so report $Q,S$ per channel type.
+\item \textbf{Age}: pediatric (Leuven only) vs.\ adult --- different HR, head size, CFA amplitude.
+\end{itemize}
+
+\subsection*{5.3 Segment selection (state the rule; avoid cherry-picking)}
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt]
+\item \textbf{Use interictal/background segments} for clean CFA characterization: during seizures,
+$s(t)$ is large and abnormal, motion inflates $n(t)$, and HR/rhythm shifts degrade R-peak
+detection --- all of which depress $Q$ for reasons unrelated to the canceller. Characterize on
+resting windows; optionally report ictal separately as a stress case.
+\item \textbf{Exclude the $\sim$3\% of recordings lacking ECG} (no reference timing possible).
+\item \textbf{Fixed-length window per recording} (e.g.\ 10--20\,min interictal, matching the
+$N_r\!\sim\!700$-beat regime of the paper) chosen by a rule (first qualifying clean window), not
+by CFA visibility. State the rule explicitly.
+\end{itemize}
+
+\subsection*{5.4 Per-recording pipeline}
+For each selected recording: (1) detect R-peaks on ECG with the min/max-PI tracker + arrhythmia
+supervisor; (2) build $\dhat_\true$ and $B$ circular-shift $\dhat_\scr$; (3) compute $Q, p_Q$ and
+$\Neff$; (4) cancel, compute $S$ and $Q'$; (5) compute $\Delta_\alpha$. Emit one row per
+(subject, channel) with these five numbers plus beat count and a timing-integrity flag.
+
+\subsection*{5.5 Aggregation and reporting}
+\begin{itemize}[leftmargin=1.4em,itemsep=2pt]
+\item \textbf{Distributions, not means}: box/violin plots of $Q$ and $S$ across subjects, split by
+stratum. This \emph{is} the generalization figure.
+\item \textbf{Subject as the unit}: multiple recordings/channels per subject are correlated;
+aggregate to a per-subject value (median) for the headline, and note within-subject spread
+separately (a mixed-effects framing if you want rigor).
+\item \textbf{Report the failure fraction}: proportion of recordings with $p_Q$ not significant.
+Interpreted correctly (\S5.1), a low-$Q$ recording is usually a timing/alignment failure, not
+absent CFA --- disclose both readings.
+\item \textbf{Safety across cohort}: distribution of $\Delta_\alpha$; it should straddle zero
+within $\pm1/\sqrt{\Neff}$, demonstrating preservation is not subject-specific luck.
+\end{itemize}
+
+\subsection*{5.6 Scale}
+For a conference paper, $20$--$40$ subjects spanning the five centers, both age groups, and each
+montage type, with one interictal segment each, is sufficient and defensible. A few subjects with
+multiple segments establish within-subject stability. Running all 125$\times$2850 is journal-scale
+effort misallocated to a 4-page result; the stratified subset delivers the distribution claim at a
+fraction of the cost.
+
+\vspace{0.5em}
+\noindent\textbf{Bottom line.} The scramble null converts ``no error feedback'' into a complete,
+reference-free loop: $Q$ says the disturbance was there, $S$/$Q'$ say it was removed to a measured
+floor, $\Delta_\alpha$ says $s$ was spared --- all without ground truth. Across SeizeIT2, the same
+null doubles as a cross-device timing-integrity check, and the distribution of $Q,S$ over a
+stratified $20$--$40$-subject subset is the generalization result the paper currently lacks.
+\end{document}
