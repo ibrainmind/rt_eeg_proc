@@ -295,7 +295,8 @@ of this paper.
 
 For implementing and evaluating the proposed method, we developed a functional robust R-peak detector and PI phase tracker for both real-data and
 simulation-data analysis \cite{rt_eeg_proc_ekg_ilc}.  Especially for the real-data showcase, We only demonstrate the RRO-template canceller on records where reliable
-phase locking is available by our detection algorithm, and defer general-purpose phase tracking to future work.
+phase locking is available by our detection algorithm, and defer general-purpose phase tracking to future work. the the following experimental study,
+we also omit the causal real-time cancelation for clarity, as it relies on the accurate and timely prediction of R-peaks, which is not the focus of this work.
 
 \subsection{Real Ear-EEG Validation}
 \label{sec:real_eeg_validation}
@@ -314,7 +315,6 @@ The repetitive template $\hat{d}_r(p)$ by (Eq.~\eqref{eq:ideal}) is estimated fr
 ($N_r > 800$ beats).}
 \label{fig:noncausal_cleanup}
 \end{figure}
-\vspace{-0.6em}
 Fig.~\ref{fig:noncausal_cleanup} shows the result of non-causal repetitive disturbance rejection to the
 SeizeIT2 segment: the template is average across $N_r = 851$ learnable beats, and the qualitative view of this figure shows 
 the repetitive structure of the CFA removal by the proposed method. 
