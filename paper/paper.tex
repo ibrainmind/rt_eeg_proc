@@ -90,9 +90,7 @@ mature tools for periodic disturbance rejection in mechatronics \cite{hara1988},
 and they map naturally to the heartbeat cycle when reliable beat timing is available. In this work, 
 we focus on phase-aligned template learning/cancellation driven by heartbeat timing in three deployment modes: 
 non-causal offline, buffered causal (one-beat latency), and strict real-time causal (zero added 
-latency).
-
-The resulting contribution is a compact, wearable-oriented CFA removal scheme aligned with realistic 
+latency). The resulting contribution is a compact, wearable-oriented CFA removal scheme aligned with realistic 
 device constraints: low channel count, low compute budget, and timing references that may come from a 
 separate wearable. 
 
@@ -124,7 +122,7 @@ T_k = t_{k+1} - t_k,
 \end{equation}
 where $t_k$ is the $k$-th detected R-peak instant.
 
-\begin{assumption}\label{asm:cfa_dominant}
+\begin{assumption}\label{asm:cfa_dominant}s
 In ear-EEG, CFA is dominated by the repetitive component $d_r(t)$. The R-peak
 phase-asynchronous disturbances and noise $n(t)$ are assumed zero-mean across the R-peak sync averaging, and DC offset and slow drift are removed
 by preprocessing.
@@ -389,9 +387,9 @@ Fig.~\ref{fig:synthetic_coh_sweep} clarifies the practical
 regime of low-channel ear-EEG,  by comparing a linear ECG-referenced
  baseline (RLS-ANC) against the proposed repetitive disturbance rejection under controlled 
  predictability change. RLS-ANC behaves as a coherence-gated linear canceller and it only suppress the CFA
- to the noise floor, our synthetic simulation has to choose a higher SNR CFA simulation than the typical real-data scenario.
+ to the noise floor, whose performance degrades when the coherence between the ECG and the CFA decreases.
   By contrast,
-  the non-causal and buffered repetitive methods remain comparatively stable because 
+  the proposed non-causal and buffered repetitive methods remain comparatively stable because 
   they estimate the heartbeat-locked disturbance directly from EEG using beat timing, 
   thereby removing not only the linearly coherent part but also nonlinear and 
   coherence-diluted heartbeat-locked components embedded in neural activity and measurement noise.
@@ -401,9 +399,8 @@ regime of low-channel ear-EEG,  by comparing a linear ECG-referenced
 We have presented a control-theoretic view of cardiac-field-artifact (CFA) removal in
 low-channel ear-EEG: CFA is modeled as a heartbeat-phase-locked repetitive disturbance and
 rejected by phase-indexed synchronous averaging and iterative learning, anchored only to
-R-peak timing and never to the ECG waveform. We applied the proposed repetitive template method 
-to both real datasets and synthetic simulation, demonstrating its effectiveness 
-in removing cardiac-field artifacts with only R-peak timing as a reference phase index.
+R-peak timing and never to the ECG waveform. This work attempts to improve the SNR for low channel ear-EEG scenario,
+which paves the way for the non-invasive wearable BCI applications, such as brain status monitoring and low channel whole brain modeling \cite{momi2025}, etc.
 
 More broadly, this work aims to bridge mature mechatronic disturbance-rejection theory and 
 biosignal denoising, opening a control-systems avenue for wearable neural interfaces. This perspective extends naturally beyond the cardiac artifact: an inertial 
@@ -454,6 +451,10 @@ functional roles, and methodological considerations,'' \emph{NeuroImage}, vol. 1
 \bibitem{seizeit2} M. Bhagubai, C. Chatzichristos, L. Swinnen \emph{et al.}, ``SeizeIT2: wearable
 dataset of patients with focal epilepsy,'' \emph{Scientific Data}, vol. 12, art. 1228, 2025.
 OpenNeuro dataset: ds005873.
+
+\bibitem{momi2025} D. Momi, Z. Wang, S. Parmigiani \emph{et al.}, ``Stimulation mapping and
+whole-brain modeling reveal gradients of excitability and recurrence in cortical networks,''
+\emph{Nat. Commun.}, vol. 16, art. 3222, 2025.
 
 \end{thebibliography}
 
