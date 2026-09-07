@@ -33,7 +33,10 @@ from typing import List, Sequence, Tuple
 import matplotlib.pyplot as plt
 import mne
 import numpy as np
+from scipy import signal
 from scipy.signal import coherence, welch
+
+import ekg_ilc_rt as rt
 
 
 @dataclass
@@ -994,6 +997,268 @@ def plot_tracker_comparison(
     plt.close(fig2)
 
 
+def _noncausal_locked_rpeaks(ecg: np.ndarray, fs: float) -> np.ndarray:
+    """Find an offline zero-phase R-peak reference for predictor scoring."""
+    sos = signal.butter(2, [8.0, 20.0], btype="band", fs=fs, output="sos")
+    envelope = np.abs(signal.sosfiltfilt(sos, ecg))
+    smooth_len = max(3, int(0.05 * fs) | 1)
+    envelope = signal.savgol_filter(envelope, smooth_len, 2)
+    threshold = np.median(envelope) + 0.5 * (np.percentile(envelope, 98) - np.median(envelope))
+    peaks, _ = signal.find_peaks(envelope, height=threshold, distance=int(0.30 * fs))
+    refine = int(round(0.06 * fs))
+    locked = []
+    for peak in peaks:
+        lo = max(0, peak - refine)
+        hi = min(len(ecg), peak + refine + 1)
+        local = ecg[lo:hi] - np.mean(ecg[lo:hi])
+        locked.append(lo + int(np.argmax(np.abs(local))))
+    return np.asarray(locked, dtype=float)
+
+
+def _nearest_reference(samples: np.ndarray, reference: np.ndarray) -> np.ndarray:
+    """Return the nearest offline reference sample for each candidate sample."""
+    idx = np.searchsorted(reference, samples)
+    lo = np.clip(idx - 1, 0, len(reference) - 1)
+    hi = np.clip(idx, 0, len(reference) - 1)
+    return np.where(
+        np.abs(samples - reference[hi]) < np.abs(samples - reference[lo]),
+        reference[hi],
+        reference[lo],
+    )
+
+
+def run_kalman_predictor_comparison(
+    ecg_trace: SignalTrace,
+    start_sec: float = 0.0,
+    duration_sec: float | None = None,
+    out_path: Path | None = None,
+    figure_label: str | None = None,
+    show: bool = False,
+) -> None:
+    """Compare causal Kalman R predictions with an offline locked R reference."""
+    ecg = np.asarray(ecg_trace.values, dtype=float)
+    fs = float(ecg_trace.fs)
+    if duration_sec is not None:
+        ecg = ecg[: max(2, int(round(duration_sec * fs)))]
+    estimate = rt.phase_estimator(ecg, fs, use_pll=False, use_override=True, debug=False)
+    observed = np.asarray([fid for fid, _, _ in estimate["fids"]], dtype=float)
+    reference = _noncausal_locked_rpeaks(ecg, fs)
+    if observed.size < 5 or reference.size < 5:
+        raise RuntimeError("Not enough R-peaks for Kalman predictor comparison")
+
+    q, r = rt.estimate_kalman_qr(observed, reference, fs)
+    kalman = rt.kalman_predict_rpeaks(observed, fs, q, r)
+    prediction = kalman["predicted"]
+    sigma_tau = kalman["sigma_tau"]
+    valid = np.isfinite(prediction)
+    matched = _nearest_reference(prediction[valid], reference)
+    error_ms = (prediction[valid] - matched) / fs * 1000.0
+    sigma_ms = sigma_tau[valid] / fs * 1000.0
+    # Reject gross sequence mismatches while retaining ordinary predictor errors.
+    scored = np.abs(error_ms) <= 0.45 * 1000.0 * np.median(np.diff(reference)) / fs
+    error_ms = error_ms[scored]
+    predicted = prediction[valid][scored]
+    matched = matched[scored]
+    sigma_ms = sigma_ms[scored]
+    innovation_z = kalman["innovations"][valid][scored]
+    if error_ms.size < 3:
+        raise RuntimeError("Too few matched predicted/reference beats to score")
+
+    median_error = float(np.median(error_ms))
+    prior_variance = 0.5 * (q + np.sqrt(q * q + 4.0 * q * r))
+    metrics = {
+        "q_ms2": q * 1e6,
+        "r_ms2": r * 1e6,
+        "K_ss": prior_variance / (prior_variance + r),
+        "n_observed": int(observed.size),
+        "n_reference": int(reference.size),
+        "n_scored": int(error_ms.size),
+        "bias_ms": float(np.mean(error_ms)),
+        "median_error_ms": median_error,
+        "mae_ms": float(np.mean(np.abs(error_ms))),
+        "rmse_ms": float(np.sqrt(np.mean(error_ms ** 2))),
+        "sd_debiased_ms": float(np.std(error_ms - median_error)),
+        "abs_p90_ms": float(np.percentile(np.abs(error_ms), 90)),
+        "within_5ms": float(np.mean(np.abs(error_ms) <= 5.0)),
+        "within_10ms": float(np.mean(np.abs(error_ms) <= 10.0)),
+    }
+    print("Kalman R-peak predictor metrics")
+    print(f"  q = {metrics['q_ms2']:.3f} ms^2, r = {metrics['r_ms2']:.3f} ms^2, K_ss = {metrics['K_ss']:.4f}")
+    print(f"  observed/reference/scored = {metrics['n_observed']}/{metrics['n_reference']}/{metrics['n_scored']}")
+    print(f"  bias={metrics['bias_ms']:.2f} ms, median={metrics['median_error_ms']:.2f} ms, "
+          f"MAE={metrics['mae_ms']:.2f} ms, RMSE={metrics['rmse_ms']:.2f} ms")
+    print(f"  debiased SD={metrics['sd_debiased_ms']:.2f} ms, abs P90={metrics['abs_p90_ms']:.2f} ms, "
+          f"within 5/10 ms={100*metrics['within_5ms']:.1f}%/{100*metrics['within_10ms']:.1f}%")
+    innovation_score = np.abs(innovation_z)
+    print(f"  normalized innovation |z|: median={np.median(innovation_score):.2f}, "
+          f"P90={np.percentile(innovation_score, 90):.2f}, max={np.max(innovation_score):.2f}")
+    print("  Innovation gate against observed prediction error:")
+    for error_threshold_ms in (10.0, 20.0, 30.0):
+        bad = np.abs(error_ms) > error_threshold_ms
+        if not np.any(bad) or np.all(bad):
+            print(f"    bad = |error| > {error_threshold_ms:.0f} ms: insufficient class variation")
+            continue
+        ranks = np.argsort(np.argsort(innovation_score))
+        n_bad = int(np.sum(bad))
+        auc = float((np.sum(ranks[bad]) - n_bad * (n_bad - 1) / 2.0)
+                / (np.sum(~bad) * n_bad))
+        print(f"    bad = |error| > {error_threshold_ms:.0f} ms: prevalence={100*np.mean(bad):.1f}%, AUC={auc:.3f}")
+    for z_threshold in (1.5, 2.0, 2.5, 3.0):
+        flagged = innovation_score > z_threshold
+        bad = np.abs(error_ms) > 20.0
+        true_positive = np.sum(flagged & bad)
+        precision = true_positive / max(np.sum(flagged), 1)
+        recall = true_positive / max(np.sum(bad), 1)
+        print(f"    |z| > {z_threshold:.1f}: flag={100*np.mean(flagged):.1f}%, "
+              f"precision={100*precision:.1f}%, recall={100*recall:.1f}% for |error|>20 ms")
+    print(f"  Section 6 sigma_tau range = {np.min(sigma_ms):.2f}..{np.max(sigma_ms):.2f} ms "
+          f"(median {np.median(sigma_ms):.2f} ms)")
+    print("  Gate sweep (sigma_tau <= threshold; rejected beats would use buffered/freeze):")
+    for threshold_ms in (5.0, 10.0, 15.0, 20.0, 30.0):
+        keep = sigma_ms <= threshold_ms
+        if np.any(keep):
+            gated_error = error_ms[keep]
+            gate_rmse = float(np.sqrt(np.mean(gated_error ** 2)))
+            gate_p90 = float(np.percentile(np.abs(gated_error), 90))
+            print(f"    {threshold_ms:4.0f} ms: keep {100*np.mean(keep):5.1f}% "
+                  f"RMSE {gate_rmse:6.2f} ms, abs P90 {gate_p90:6.2f} ms")
+        else:
+            print(f"    {threshold_ms:4.0f} ms: keep   0.0% (all beats gated)")
+
+    t = _time_axis(len(ecg), fs)
+    start = max(0.0, start_sec)
+    end = t[-1] if duration_sec is None else min(t[-1], start + max(0.0, duration_sec))
+    mask = (t >= start) & (t <= end)
+    fig, axes = plt.subplots(2, 1, figsize=(13, 6.4), sharex=True)
+    axes[0].plot(t[mask], ecg[mask], color="0.25", lw=0.7, label="ECG")
+    ref_keep = (matched / fs >= start) & (matched / fs <= end)
+    pred_keep = (predicted / fs >= start) & (predicted / fs <= end)
+    axes[0].scatter(matched[ref_keep] / fs, ecg[np.rint(matched[ref_keep]).astype(int)],
+                    s=28, color="C0", marker="o", label="non-causal locked R")
+    axes[0].scatter(predicted[pred_keep] / fs, ecg[np.clip(np.rint(predicted[pred_keep]).astype(int), 0, len(ecg)-1)],
+                    s=28, color="C3", marker="x", label="Kalman predicted R")
+    axes[0].set_ylabel("ECG amplitude")
+    axes[0].set_title("ECG with predicted and non-causal locked R-peaks")
+    axes[0].grid(alpha=0.3)
+    axes[0].legend(loc="upper right", fontsize=8)
+    error_keep = (matched / fs >= start) & (matched / fs <= end)
+    axes[1].axhline(0.0, color="0.2", lw=0.8)
+    axes[1].plot(matched[error_keep] / fs, error_ms[error_keep], "o-", ms=3, lw=0.8, color="C4")
+    axes[1].set_ylabel("Prediction error (ms)")
+    axes[1].set_xlabel("Time (s)")
+    axes[1].set_title("Kalman predicted R minus non-causal locked R")
+    axes[1].grid(alpha=0.3)
+    axes[1].set_xlim(start, end)
+    if figure_label:
+        fig.suptitle(f"{figure_label} | scalar Kalman R-peak predictor", fontsize=11)
+        plt.tight_layout(rect=[0, 0, 1, 0.96])
+    else:
+        plt.tight_layout()
+    if out_path is not None:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(out_path, dpi=140)
+        print(f"Saved figure: {out_path}")
+    if show:
+        plt.show()
+    plt.close(fig)
+
+
+def run_real_cancellation_figure(
+    dataset_root: Path,
+    subject: str,
+    session: str,
+    run: str,
+    start_sec: float,
+    duration_sec: float,
+    eeg_index: int = 1,
+    ecg_index: int = 0,
+    full_duration_sec: float = 600.0,
+    out_path: Path | None = None,
+    show: bool = False,
+) -> None:
+    """Plot original, buffered, and Kalman strict-real-time cancellation.
+
+    q/r are estimated once from the full filtered recording; only the display
+    window is cropped. This is the canonical real-data cancellation plot used
+    by both the command line and manuscript figure generation.
+    """
+    t_full, _, eeg, ecg, fs, _, _, eeg_name, ecg_name = load_aligned_real_segment(
+        dataset_root=dataset_root,
+        subject=subject,
+        session=session,
+        run=run,
+        pull=True,
+        eeg_indices=(0, eeg_index),
+        ecg_index=ecg_index,
+        start_sec=0.0,
+        duration_sec=full_duration_sec,
+        highpass_hz=0.5,
+        notch_hz=50.0,
+    )
+    detected = rt.phase_estimator(ecg, fs, use_pll=False, use_override=True)
+    observed = np.asarray([fid for fid, _, _ in detected["fids"]], dtype=float)
+    q, r = rt.estimate_kalman_qr(observed, fs=fs)
+    estimate = rt.phase_estimator(
+        ecg, fs, use_pll=True, use_override=True, kalman_q=q, kalman_r=r
+    )
+    buffered, _ = rt.ilc_clean(eeg, fs, estimate, mode="buffered", use_ilc=True)
+    causal, _ = rt.ilc_clean(eeg, fs, estimate, mode="causal", use_ilc=True)
+
+    i0 = max(0, min(int(round(start_sec * fs)), len(t_full) - 1))
+    i1 = max(i0 + 1, min(int(round((start_sec + duration_sec) * fs)), len(t_full)))
+    t = t_full[i0:i1]
+    ecg_view = ecg[i0:i1]
+    fid_idx = np.asarray([int(fid) for fid, _, _ in estimate["fids"]], dtype=int)
+    fid_idx = fid_idx[(fid_idx >= i0) & (fid_idx < i1)]
+    buffered_times = fid_idx / fs
+    predicted_idx = []
+    for fid in fid_idx:
+        phase = ((float(estimate["phi"][fid]) + 0.5) % 1.0) - 0.5
+        predicted_idx.append(float(fid) - phase * float(estimate["rrhat"][fid]) * fs)
+    predicted_idx = np.asarray(predicted_idx, dtype=float)
+    predicted_idx = predicted_idx[(predicted_idx >= i0) & (predicted_idx < i1)]
+    predicted_times = predicted_idx / fs
+
+    fig, axes = plt.subplots(2, 1, figsize=(7.2, 4.4), sharex=True,
+                             gridspec_kw={"height_ratios": [1, 2]})
+    axes[0].plot(t, ecg_view, lw=0.9, color="C2", label=ecg_name)
+    if buffered_times.size:
+        axes[0].scatter(buffered_times, ecg[fid_idx], s=34, color="C0", marker="o",
+                        zorder=4, label="buffered R peak")
+    if predicted_times.size:
+        axes[0].scatter(predicted_times, np.interp(predicted_times, t, ecg_view),
+                        s=42, color="C4", marker="x", zorder=5,
+                        label="predicted R peak")
+    axes[0].set_ylabel("V")
+    axes[0].set_title("ECG/EKG: buffered and predicted R-peaks")
+    axes[0].legend(loc="upper right")
+    axes[0].grid(alpha=0.25)
+
+    axes[1].plot(t, eeg[i0:i1], lw=0.8, color="C3", alpha=0.75, label="original")
+    axes[1].plot(t, buffered[i0:i1], lw=1.0, color="C0", label="buffered")
+    axes[1].plot(t, causal[i0:i1], lw=1.0, color="C4", label="strict real-time")
+    axes[1].set_ylabel("V")
+    axes[1].set_title(f"EEG channel: {eeg_name}")
+    axes[1].set_xlabel("Time (s)")
+    axes[1].legend(loc="upper right")
+    axes[1].grid(alpha=0.25)
+
+    for ax in axes:
+        for peak_time in buffered_times:
+            ax.axvspan(peak_time - 0.06, peak_time + 0.06, color="C1", alpha=0.10, lw=0)
+            ax.axvline(peak_time, color="0.45", lw=0.7, ls="--", alpha=0.55)
+    fig.suptitle("Buffered and Strict Real-Time CFA Cancellation (SeizeIT2 ds005873)",
+                 fontsize=12, y=0.98)
+    plt.tight_layout(rect=[0, 0, 1, 0.975])
+    if out_path is not None:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(out_path, dpi=150)
+        print(f"Saved cancellation figure: {out_path}")
+    if show:
+        plt.show()
+    plt.close(fig)
+
+
 def plot_run_data(
     run_data: RunData,
     start_sec: float = 0.0,
@@ -1145,6 +1410,18 @@ def parse_args() -> argparse.Namespace:
         help="Run PI tracker on ECG and plot fid/peak/base/state and RR tracking",
     )
     parser.add_argument(
+        "--plot-kalman-predictor",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Compare scalar-Kalman predicted R-peaks with an offline non-causal lock",
+    )
+    parser.add_argument(
+        "--plot-cancellation-figure",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Plot original, buffered, and Kalman strict-real-time cancellation",
+    )
+    parser.add_argument(
         "--plot-passloss",
         action=argparse.BooleanOptionalAction,
         default=False,
@@ -1245,7 +1522,32 @@ def main() -> None:
     figure_label = (
         f"{dataset_root.name} | {args.subject} | {args.session} | run-{args.run}"
     )
-    if args.plot_tracker:
+    if args.plot_cancellation_figure:
+        out_path = Path(args.out).expanduser().resolve() if args.out else None
+        run_real_cancellation_figure(
+            dataset_root=dataset_root,
+            subject=args.subject,
+            session=args.session,
+            run=args.run,
+            start_sec=args.start_sec,
+            duration_sec=args.duration_sec,
+            eeg_index=args.eeg_index,
+            ecg_index=args.ecg_index,
+            full_duration_sec=600.0,
+            out_path=out_path,
+            show=args.show,
+        )
+    elif args.plot_kalman_predictor:
+        out_path = Path(args.out).expanduser().resolve() if args.out else None
+        run_kalman_predictor_comparison(
+            ecg_trace=run_data.ecg[0],
+            start_sec=args.start_sec,
+            duration_sec=args.duration_sec,
+            out_path=out_path,
+            figure_label=figure_label,
+            show=args.show,
+        )
+    elif args.plot_tracker:
         tracker_cmp = run_pi_tracker_comparison(run_data.ecg[0])
         plot_tracker_comparison(
             cmp=tracker_cmp,

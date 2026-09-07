@@ -146,15 +146,16 @@ def fig1_convergence_spectrum(t, y, s, results, fs):
     ax[0].grid(alpha=0.3)
 
     _, e_final_buf, _ = results["buffered"]
+    _, e_final_causal, _ = results["causal"]
     f_ax, P_y = signal.welch(y[ss], fs, nperseg=1024)
-    _, P_clean = signal.welch(e_final_buf[ss], fs, nperseg=1024)
-    _, P_s = signal.welch(s[ss], fs, nperseg=1024)
-    ax[1].semilogy(f_ax, P_y, lw=1.0, alpha=0.8, label="contaminated", color="0.5")
-    ax[1].semilogy(f_ax, P_clean, lw=1.4, label="cleaned", color="C0")
-    ax[1].semilogy(f_ax, P_s, ":", lw=1.4, label="true", color="C2")
+    _, P_buffered = signal.welch(e_final_buf[ss], fs, nperseg=1024)
+    _, P_causal = signal.welch(e_final_causal[ss], fs, nperseg=1024)
+    ax[1].semilogy(f_ax, P_y, lw=1.0, alpha=0.8, label="original", color="0.5")
+    ax[1].semilogy(f_ax, P_buffered, lw=1.4, label="buffered", color="C0")
+    ax[1].semilogy(f_ax, P_causal, lw=1.4, label="strict real-time", color="C3")
     ax[1].axvspan(9, 11, color="green", alpha=0.12)
     ax[1].set_xlim(0, 40)
-    ax[1].set_title("(b) Spectrum (buffered mode)")
+    ax[1].set_title("(b) Spectrum: original, buffered, and strict real-time")
     ax[1].set_xlabel("frequency (Hz)")
     ax[1].set_ylabel("PSD")
     ax[1].legend()
@@ -463,97 +464,25 @@ def fig2_noncausal_cleanup(
     full_dur_sec: float = 300.0,
     out_path: str = "fig_real/fig_noncausal_cleanup.png",
 ) -> None:
-    """Generate Figure 2: non-causal repetitive cancellation on the same 3-beat segment as Fig. 1.
-
-    Loads the full recording from t=0 (full_dur_sec), runs noncausal ILC across all beats,
-    then extracts the 3-beat display window (start_sec..start_sec+duration_sec) for plotting.
-    This is the true non-causal procedure: template averaged over the entire session.
-    """
-    ds_path = dataset_root
-    if not os.path.isabs(ds_path):
-        ds_path = os.path.join(REPO_ROOT, ds_path)
-    ds_path_abs = Path(os.path.abspath(ds_path))
-
-    # Load the full recording from t=0 so the template uses all available beats.
-    t_full, _, eeg2_full, ecg_full, fs, _, _, eeg2_name, ecg_name = P.load_aligned_real_segment(
-        dataset_root=ds_path_abs,
+    """Delegate the manuscript figure to the canonical process_data workflow."""
+    ds_path = Path(dataset_root)
+    if not ds_path.is_absolute():
+        ds_path = Path(REPO_ROOT) / ds_path
+    output = Path(out_path)
+    if not output.is_absolute():
+        output = Path(THIS_DIR) / output
+    P.run_real_cancellation_figure(
+        dataset_root=ds_path.resolve(),
         subject=subject,
         session=session,
         run=run,
-        pull=True,
-        eeg_indices=(0, eeg2_index),
+        start_sec=start_sec,
+        duration_sec=duration_sec,
+        eeg_index=eeg2_index,
         ecg_index=ecg_index,
-        start_sec=0.0,
-        duration_sec=full_dur_sec,
-        highpass_hz=highpass_hz,
-        notch_hz=notch_hz,
+        full_duration_sec=full_dur_sec,
+        out_path=output.resolve(),
     )
-
-    # Run phase estimator on the full ECG.
-    est_full = C.phase_estimator(ecg_full, fs, use_pll=True, use_override=True)
-    n_r = len([f for f in est_full.get("fids", []) if f[2]])  # learnable beats
-    print(f"  Non-causal template: {n_r} learnable beats over {full_dur_sec:.0f}s")
-
-    # Non-causal ILC: average template over all N_r beats, subtract (Eqs. 4a, 5).
-    eeg2_clean_full, _ = C.ilc_clean(eeg2_full, fs, est_full, mode="noncausal", use_ilc=True)
-
-    # Extract display window by time index.
-    i0 = int(round(start_sec * fs))
-    i1 = i0 + int(round(duration_sec * fs))
-    i0 = max(0, min(i0, len(t_full) - 1))
-    i1 = max(i0 + 1, min(i1, len(t_full)))
-
-    t_disp     = t_full[i0:i1]
-    eeg2_disp  = eeg2_full[i0:i1]
-    eeg2_clean = eeg2_clean_full[i0:i1]
-    ecg_disp   = ecg_full[i0:i1]
-
-    # R-peak times within display window.
-    fid_idx = np.array([int(fid) for fid, _, _ in est_full.get("fids", [])], dtype=int)
-    fid_idx = fid_idx[(fid_idx >= i0) & (fid_idx < i1)]
-    r_times = t_full[fid_idx] if fid_idx.size > 0 else np.array([], dtype=float)
-
-    shade_hw = 0.06
-    fig, axes = plt.subplots(2, 1, figsize=(7.2, 4.4), sharex=True,
-                             gridspec_kw={"height_ratios": [1, 2]})
-
-    # Top: ECG with R-peak marks.
-    axes[0].plot(t_disp, ecg_disp, lw=0.9, color="C2", label=ecg_name)
-    if r_times.size > 0:
-        r_vals = np.interp(r_times, t_disp, ecg_disp)
-        axes[0].scatter(r_times, r_vals, s=14, color="k", zorder=4, label="R peaks")
-    axes[0].set_ylabel("V")
-    axes[0].set_title("ECG/EKG")
-    axes[0].legend(loc="upper right")
-    axes[0].grid(alpha=0.25)
-
-    # Bottom: raw and cleaned EEG overlaid.
-    axes[1].plot(t_disp, eeg2_disp,  lw=0.8, color="C3",   label="original",        alpha=0.75)
-    axes[1].plot(t_disp, eeg2_clean, lw=1.0, color="C0",   label=f"cleaned (N_r={n_r})")
-    axes[1].set_ylabel("V")
-    axes[1].set_title(f"EEG channel: {eeg2_name}")
-    axes[1].set_xlabel("Time (s)")
-    axes[1].legend(loc="upper right")
-    axes[1].grid(alpha=0.25)
-
-    # Shade and mark R-peak neighborhoods on both panels.
-    for ax in axes:
-        for rt in r_times:
-            ax.axvspan(rt - shade_hw, rt + shade_hw, color="C1", alpha=0.10, lw=0)
-        for rt in r_times:
-            ax.axvline(rt, color="0.45", lw=0.7, ls="--", alpha=0.55)
-
-    fig.suptitle(
-        "Non-Causal Repetitive CFA Cancellation (SeizeIT2 ds005873)",
-        fontsize=12, y=0.98,
-    )
-    plt.tight_layout(rect=[0, 0, 1, 0.975])
-
-    out_abs = out_path if os.path.isabs(out_path) else os.path.join(THIS_DIR, out_path)
-    os.makedirs(os.path.dirname(out_abs), exist_ok=True)
-    plt.savefig(out_abs, dpi=150)
-    plt.close(fig)
-    print(f"wrote Figure 2: {out_abs}")
 
 
 def _coherence_curve(x: np.ndarray, y: np.ndarray, fs: float) -> tuple[np.ndarray, np.ndarray]:
@@ -697,8 +626,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--subject", default="sub-070", help="Subject ID")
     parser.add_argument("--session", default="ses-01", help="Session ID")
     parser.add_argument("--run", default="20", help="Run ID")
-    parser.add_argument("--fig1-start-sec", type=float, default=64.0, help="Figure 1 start time (s)")
-    parser.add_argument("--fig1-duration-sec", type=float, default=2.5, help="Figure 1 duration (s)")
+    parser.add_argument("--fig1-start-sec", type=float, default=340.45, help="Figure 1 start time (s)")
+    parser.add_argument("--fig1-duration-sec", type=float, default=1.8, help="Figure 1 duration (s)")
     parser.add_argument("--fig1-eeg1-index", type=int, default=0, help="Figure 1 EEG index #1")
     parser.add_argument("--fig1-eeg2-index", type=int, default=1, help="Figure 1 EEG index #2")
     parser.add_argument("--fig1-ecg-index", type=int, default=0, help="Figure 1 ECG index")

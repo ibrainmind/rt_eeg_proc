@@ -133,10 +133,10 @@ by preprocessing.
 \end{assumption}
 
 \begin{assumption}\label{asm:neural_not_phase_locked}
-The neural signal of interest $s(t)$ is not
-phase-locked to the R-peak: across beats, its phase relative to the cardiac cycle is effectively
-uniform. Consequently $s(t)$ is preserved by the proposed
-phase-synchronous repetitive run-out (RRO) cancellation. More detailed analysis is provided in Sec.~\ref{sec:noncausal_repetitive_rejection}.
+We assume the neural signal can be decomposed as $s(t)=s_r(t)+s_n(t)$, where $s_r(t)$ is the
+heartbeat-repetitive neural component and $s_n(t)$ is the non-repetitive neural component of interest.
+The targeted applications in this paper do not seek to recover $s_r(t)$, so it is dropped from the
+problem formulation.
 \end{assumption}
 
 Using heartbeat phase, we represent the repetitive disturbance as a phase-indexed waveform
@@ -153,9 +153,10 @@ additional small modulation from low-level muscle/motion effects in resting-stat
 
 \begin{problem}\label{prob:cfa_removal}
 Find the repetitive cardiac artifact template $\hat{d}_r(\phi(t))$ such that subtracting it from
-the measured signal recovers the neural signal of interest:
+the measured signal recovers the non-repetitive neural signal of interest, after dropping the
+out-of-scope repetitive neural component $s_r(t)$:
 \begin{equation}
-\hat{s}(t) = y(t) - \hat{d}_r\!\left(\phi(t)\right) \approx s(t).
+\hat{s}_n(t) = y(t) - \hat{d}_r\!\left(\phi(t)\right) \approx s_n(t).
 \label{eq:cfa_goal}
 \end{equation}
 Under Assumptions~\ref{asm:cfa_dominant}--\ref{asm:rpeak_T_varying}, $\hat{d}_r(\phi(t))$ can be
@@ -171,11 +172,10 @@ instantiate the solution.
 \end{noteenv}
 
 \begin{noteenv}\label{note:hep}
-In reality, $s(t)$ may contain a phase-synchronous part 
-that has non-zero mean value across beats, e.g. the heartbeat-evoked potential (HEP)---a genuine cortical
-response time-locked to the cardiac cycle \cite{park2019}. This HEP component may or may not be absorbed into $\hat{d}_r$.
-In this paper, we make no claim that the solution of Eq.~\ref{eq:cfa_goal} preserves the phase-synchronous part of the neural signals, and this is
-a meaningful extension worthy of further investigation. 
+In reality, the out-of-scope $s_r(t)$ may contain a phase-synchronous component, e.g. the
+heartbeat-evoked potential (HEP)---a genuine cortical response time-locked to the cardiac cycle
+\cite{park2019}. This component may be absorbed into $\hat{d}_r$; preserving it is a meaningful
+extension worthy of further investigation.
 \end{noteenv}
 
 
@@ -213,10 +213,12 @@ onset and the full QRS-T complex by 600ms total duration.
 \section{Repetitive Disturbance Rejection}
 \label{sec:noncausal_repetitive_rejection}
 
-\subsection{Non-Causal Cancellation}
-\label{sec:noncausal_sol}
 
-For offline CFA removal, we could run non-causal averaging to obtain the solution of Problem~\ref{prob:cfa_removal}. 
+
+\subsection{Buffered Template Averaging}
+
+
+Assuming R-peak accurately detected and bad beats rejected, we could run non-causal averaging to obtain the solution of Problem~\ref{prob:cfa_removal}.
 That is, for a fixed phase index $p$ (offset from the R-peak), the template value is the average, across
 $N_r$ beats, of the EEG sampled at the \emph{same} offset $p$ from each detected R-peak
 $\hat t_k$:
@@ -229,75 +231,108 @@ y_k(p) \equiv y\!\left(\hat t_k + p/f_s\right).
 Substituting the signal $y_k(p)$ by its definition from the discrete time version of Eq.~(\ref{eq:meas}), we obtain
 \begin{equation}
 \dhat_r(p) = \underbrace{d_r(p)}_{\text{same every beat}}
-\;+\; \frac{1}{N_r}\sum_{k=1}^{N_r} s_k(p)
-\;+\; \frac{1}{N_r}\sum_{k=1}^{N_r} n_k(p).
+\;+\; \underbrace{\frac{1}{N_r}\sum_{k=1}^{N_r} s_{n,k}(p)
+\;+\; \frac{1}{N_r}\sum_{k=1}^{N_r} n_k(p)}_{\text{averaged to zero over time}}.
 \label{eq:decomp}
 \end{equation}
-In Eq.~\eqref{eq:est}, we use $\dhat_r(p)$ to denote $\hat{d}_r(\phi_p)$ for better readability,
- and so are the $p$-indexed notations used in the subsequent discussion.
-
-Taking the expectation of Eq.~\eqref{eq:decomp} over R-peaks, we obtain
-\begin{equation}
-\E\bigl[\dhat_r(p)\bigr] = d_r(p) + \E\bigl[s_k(p)\bigr] + \E\bigl[n_k(p)\bigr].
-\end{equation}
-The repetitive R-peak-locked disturbance template $d_r(p)$ is deterministic. Ideally, 
-the non-R-peak-locked neural term $\E\bigl[s_k(p)\bigr]$ and the noise term $\E\bigl[n_k(p)\bigr]$ 
-vanish by Assumption~\ref{asm:cfa_dominant}, 
-so that Eq.~\eqref{eq:decomp} yields the desired estimate by design: 
-\begin{equation}
-\dhat_r(p) \approx d_r(p),
-\end{equation}
-The CFA removed EEG signal is approximated by
-\begin{equation}\label{eq:ideal}
-\widehat{s}_k(p) \approx y_k(p) - \dhat_r(p),
-\end{equation}
- Let the asynchronous part at offset $p$ have
-per-sample variance
-\begin{equation}
-\Var\bigl[s_k(p)+n_k(p)\bigr] = V(p).
-\end{equation}
-The noise floor leakage in $\dhat_r(p)$ due to limited sample average is the sample-mean of these $N_r$ terms. If the per-beat samples are
-\emph{mutually uncorrelated},
-\begin{equation}
-\Var\bigl[\dhat_r(p)\bigr]
-= \frac{1}{N_r^2}\sum_{k=1}^{N_r} V(p) = \frac{V(p)}{N_r}.
-\label{eq:leak}
-\end{equation}
-Realistically, part of the neural background is weakly coupled to the cardiac cycle; retaining the
-cross terms inflates Eq.~\eqref{eq:leak} by a factor $1+\delta_{\mathrm{coh}}$, with
-$\delta_{\mathrm{coh}}=(2/N_r)\sum_{i<j}\rho_{ij}(p)$ and $\rho_{ij}(p)$ the correlation between
-beats $i$ and $j$ at offset $p$. Provided $\delta_{\mathrm{coh}}$ stays bounded, the leakage still
-decays as $1/N_r$, and Sec.~\ref{sec:real_eeg_validation} measures the resulting floor directly with
-a phase-scramble null.
+Eq.~\eqref{eq:est}--\eqref{eq:decomp} fall back to the established template-based
+BCG/CFA artifact-removal approach of \cite{allen1998}: beats are aligned
+to the cardiac event and averaged without phase normalization. This paper will focus on streaming artifact removal,
+so we keep the template-based representation without introducing phase normalization in the rest of derivation.
 
 
-\subsection{Causal Cancellation}
-
-For streaming operation the batch average of Eq.~\eqref{eq:est} is replaced by its standard
+For streaming template learning, the batch average of Eq.~\eqref{eq:est} is replaced by its standard
 exponentially-weighted ILC recursion, updated once per learnable beat at each offset $p$:
-\begin{subequations}\label{eq:causal_ilc}
-\begin{align}
-\hat{d}_r^{(k)}(p) &= \hat{d}_r^{(k-1)}(p) + a\,\bigl[\,y_k(p) - \hat{d}_r^{(k-1)}(p)\,\bigr],
-\label{eq:causal_ilc_update}\\
-\widehat{s}_{k-1}(p) &\approx y_{k-1}(p) - \hat{d}_r^{(k-1)}(p).
+\begin{equation}
+\hat{d}_r^{(k)}(p) = \hat{d}_r^{(k-1)}(p) + a\,\bigl[\,y_k(p) - \hat{d}_r^{(k-1)}(p)\,\bigr],
+\label{eq:causal_ilc_update}
+\end{equation}
+where $a\in(0,1]$ is a tunable learning gain. The supervisor freezes the update on
+premature/missed beats.
+\begin{noteenv}
+This proposal of using an exponentially-weighted ILC recursion converges to the exponentially averaged template \cite{allen1998} without phase normalization.
+
+\end{noteenv}
+
+\subsection{Real-Time Cancellation}
+\label{sec:strict_real_time}
+
+For applications where one beat of delay is acceptable, buffered cancellation is a strong candidate:
+the template is updated from the current learnable beat, while the preceding beat is cancelled using
+the completed template and its detected R-peak. This avoids prediction error at the cancellation
+anchor while adding only one heartbeat of latency:
+\begin{equation}
+\widehat{s}_{k-1}(p) \approx y_{k-1}(p) - \hat{d}_r^{(k-1)}(p).
 \label{eq:causal_ilc_buffered}
+\end{equation}
+The buffered mode is therefore preferred whenever the application can tolerate one-beat delay.
+
+\paragraph{Strict real-time cancellation.}
+When zero added latency is required, the cancellation anchor must be based on effective R-peak
+prediction rather than the detected current-beat R-peak. At sample $i$, after the
+last detected peak $\hat{t}_k$, it therefore uses the predicted cardiac timing and the elapsed
+sample offset $\hat{p}(i)=i-\hat{t}_k$ to look up the fixed-lag template:
+\begin{equation}
+\hat{s}_n[i] = y[i] - \hat{d}_r\!\left(\hat{p}(i)\right),
+\qquad \hat{p}(i)=i-\hat{t}_k.
+\label{eq:strict_cancel}
+\end{equation}
+The predictor estimates the next RR interval from a scalar random-walk model. In sample units,
+the observed interval $z_k$ is the difference between consecutive detected R-peak sample instants,
+$z_k=\hat{t}_k-\hat{t}_{k-1}$.
+\begin{subequations}\label{eq:rr_model}
+\begin{align}
+T_k &= T_{k-1}+w_k, \qquad w_k\sim(0,q),
+\label{eq:rr_state}\\
+z_k &= T_k+v_k, \qquad v_k\sim(0,r).
+\label{eq:rr_measurement}
 \end{align}
 \end{subequations}
-where $a\in(0,1]$ is a tunable learning gain: Eq.~\eqref{eq:causal_ilc_update} is a first-order
-beat-domain filter with pole $1-a$, trading an effective averaging span of about $1/a$ beats against
-a steady-state leakage of $a/(2-a)$ times $V(p)$. The supervisor freezes the update on
-premature/missed beats. Eq.~\eqref{eq:causal_ilc_buffered} is the buffered one-R-peak-delay cancellation form,
-equivalent to Eq.~\eqref{eq:ideal} with index $k-1$. For true strict real-time cancellation,
-the current beat's R-peak $t_k$ has not arrived yet, so the canceller must anchor phase using
-the PI-type R-peak phase tracker prediction rather than detected $t_k$ timing; this enables
-zero added latency at the cost of prediction-jitter-limited suppression around the R spike.
-Both modes are $O(1)$ per sample with $O(n_t)$ memory, which makes the proposed method favorable for real-time implementation.
-\begin{noteenv}
-Real-time cancellation requires that the R-peak detector has basic capability to reject immature beats,
-or to invalidate abnormal R-peaks, so that both template update and cancellation can be held when the
-timing reference is unreliable. We provide a functional robust R-peak detector and phase tracker for
-data analysis in the next subsection; however, detailed detector/tracker design is outside the scope
-of this paper.
+Here $q$ is the beat-to-beat RR-increment variance, representing rate wander such as RSA, and
+$r$ is the R-peak timing-jitter variance. Both can be estimated from the recording or from a
+clean timing reference.
+
+The deployed timing tracker is written as a PI phase-locked loop. Its internal phase is advanced
+between detected peaks using the estimated rate, and corrected at a fiducial:
+\setcounter{equation}{12}
+\begin{subequations}\label{eq:pi_tracker}
+\begin{align}
+\varphi(i+1)=\left[\varphi(i)+\frac{1}{\hat{T}_k}\right]\bmod 1.
+\label{eq:pi_phase_advance}\\
+\varphi\leftarrow\varphi-K_p e_\varphi,
+\label{eq:pi_onset}\\
+\hat{T}_k\leftarrow\hat{T}_k+K_{\mathrm{ss}}\left(z_k-\hat{T}_k\right).
+\label{eq:pi_rate}
+\end{align}
+\end{subequations}
+The steady-state gain $K_{\mathrm{ss}}$ is designed using the standard scalar Kalman filter
+associated with Eq.~\eqref{eq:rr_model}. The process variance $q$ and measurement variance $r$
+may be calibrated offline from representative recordings or adapted online from previously accepted
+RR intervals. The resulting $K_{\mathrm{ss}}$ is then used in Eq.~\eqref{eq:pi_rate}; no separate
+Kalman recursion is required by the proposed cancellation method. In the present implementation,
+offline calibration is preferred because online $q/r$ adaptation cannot reliably separate RR wander
+from R-peak timing jitter without a sufficiently long accepted-beat history.
+
+$K_p$
+controls onset-jitter smoothing independently: values near one snap the phase to a detected
+fiducial, while smaller values smooth noisy onset corrections. The loop bandwidth should remain
+above the RSA band and below the per-beat detection-noise bandwidth.
+
+\begin{noteenv}\label{note:innovation_gate}
+To prevent abnormal beats from corrupting the timing estimate or the repetitive template, we use the
+normalized RR innovation as a gating metric:
+\begin{equation}
+\nu_k = \frac{z_k-\hat{T}_k^-}{\sqrt{P_k^-+r}}.
+\end{equation}
+Here $P_k^-$ is the prior RR-estimation covariance maintained by the scalar Kalman implementation.
+When $|\nu_k|$ exceeds a threshold $\eta$, the beat is treated as unreliable: the R-peak predictor
+and template update may be frozen, or cancellation may fall back to buffered mode. This gate
+complements the existing RR-ratio and morphology checks.
+\end{noteenv}
+\begin{noteenv}\label{note:realtime_complexity}
+The streaming real-time implementation of the iterative cancellation lookup and subtraction require
+$O(1)$ work per sample and $O(n_t)$ memory. The scalar Kalman PI predictor proposed in this subsection is only a showcase
+of how to obtain a real-time phase-tracking mechanism that can be offloaded to the ECG/R-peak device supplying the timing reference.
 \end{noteenv}
 % ===========================================================================
 
@@ -322,16 +357,19 @@ contributions are averaged before subtraction.
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\linewidth]{fig_real/fig_noncausal_cleanup.png}
-\caption{Non-causal repetitive CFA cancellation on a short SeizeIT2 segment
-(ds005873, sub-070, ses-01, run-20, behind-the-ear channel).
-Top: chest ECG (green) with detected R-peaks (black markers). Bottom: original (red) and
-non-causally cleaned (blue) ear-EEG. The repetitive template $\dhat_r(p)$ of Eq.~\eqref{eq:est} is
-averaged over the learnable beats of the analysed segment and subtracted as in Eq.~\eqref{eq:ideal}.}
+\caption{Buffered and strict real-time repetitive CFA cancellation on a short SeizeIT2 segment
+(ds005873, sub-070, ses-01, run-20, behind-the-ear channel; 340.45--342.25~s).
+Top: chest ECG (green) with buffered detected R-peaks (blue circles) and predicted
+strict-real-time R-peaks (purple crosses). Bottom: original (red) and
+buffered (blue) and strict real-time (purple) ear-EEG. Both outputs use the repetitive template
+of Eq.~\eqref{eq:est}; the buffered mode uses detected R-peaks, whereas the strict-real-time mode
+uses the predicted timing anchor.}
 \label{fig:noncausal_cleanup}
 \end{figure}
-Fig.~\ref{fig:noncausal_cleanup} shows the result of non-causal repetitive disturbance rejection to the
-SeizeIT2 segment: over a $600$~s window the template is averaged across $N_r = 851$ learnable beats, and the qualitative view of this figure shows 
-the repetitive structure of the CFA removal by the proposed method. 
+Fig.~\ref{fig:noncausal_cleanup} shows buffered and strict-real-time repetitive disturbance rejection on the
+SeizeIT2 segment. The template is learned from $N_r = 851$ learnable beats over a $600$~s window; the
+strict-real-time trace uses the predicted timing anchor and therefore exposes the timing-jitter penalty
+relative to the buffered trace.
 
 \emph{Template SNR via a phase-scramble null.}
 Since the true disturbance $d_r$ is unobservable on real recordings, we validate the template
@@ -343,9 +381,8 @@ a peak set $P$,
 \label{eq:Eop}
 \end{equation}
 evaluated over the main-lobe window around the R-peak ($50$~ms pre, $150$~ms post, $L_{\mathrm{lobe}}$
-samples), where the R-locked deflection is concentrated. Averaging on the true peaks gives
-$\hat{d}_r=d_r+\ell$, with leakage $\ell$ of scale $\mathrm{SD}/\sqrt{N_r}$ by
-Eq.~\eqref{eq:leak}; a circular time-shift of the peak train, which preserves the RR-interval
+samples), where the R-locked deflection is concentrated. Averaging on the true peaks gives the
+R-locked template, whereas a circular time-shift of the peak train, which preserves the RR-interval
 sequence but destroys absolute phase, gives leakage only. Averaging $200$ such shifts yields the
 null floor $\overline{\mathcal{E}_{\mathrm{scr}}}$. Their ratio,
 \begin{equation}
@@ -436,7 +473,6 @@ biosignal denoising, opening a control-systems avenue for wearable neural interf
 
 
 % ===========================================================================
-\clearpage
 \begin{thebibliography}{24}
 
 \bibitem{dirlich1997} G. Dirlich, L. Vogl, M. Plaschke, and F. Strian, ``Cardiac field effects on 
@@ -445,6 +481,9 @@ the EEG,'' \emph{Electroencephalogr. Clin. Neurophysiol.}, vol. 102, no. 4, pp. 
 \bibitem{niazy2005} R. K. Niazy, C. F. Beckmann, G. D. Iannetti, J. M. Brady, and S. M. Smith, 
 ``Removal of FMRI environment artifacts from EEG data using optimal basis sets,'' 
 \emph{NeuroImage}, vol. 28, no. 3, pp. 720--737, 2005.
+
+\bibitem{allen1998} P. J. Allen, O. Josephs, and R. Turner, ``A method for removing imaging artifact
+from EEG recorded during functional MRI,'' \emph{NeuroImage}, vol. 12, no. 2, pp. 230--239, 2000.
 
 \bibitem{widrow1975} B. Widrow \emph{et al.}, ``Adaptive noise cancelling: principles and 
 applications,'' \emph{Proc. IEEE}, vol. 63, no. 12, pp. 1692--1716, 1975.
