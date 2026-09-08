@@ -180,26 +180,30 @@ extension worthy of further investigation.
 
 
 
-To instantiate Problem~\ref{prob:cfa_removal} on the discrete sample grid, let $\hat{t}_k$ be
-the estimated $k$-th R-peak sample instant and $f_s$ the sampling rate. Retaining the beat duration
-$T_k$ is essential: the $k$-th beat is first mapped from elapsed time since R into normalized phase:
+To instantiate Problem~\ref{prob:cfa_removal}, let $\hat{t}_k$ be
+the estimated $k$-th R-peak instant. Retaining the beat duration
+$T_k$, we map the $k$-th beat from time relative to its R-peak into normalized
+phase, with the R-peak placed at the \emph{center} of the phase support rather than at its edge, set 
+$\phi\in[-c,\,1-c), c \in (0, 1)$, we obtain
 \begin{equation}
-d_r^{(k)}\!\left(\hat{t}_k + \phi T_k\right) \triangleq d_r^{(k)}(\phi),
+d_r^{(k)}(\phi) \triangleq
+\begin{cases}
+d_r\!\left(\hat{t}_k + \phi\,T_{k-1}\right), & \phi\in\left[-c,\,0\right),\\[3pt]
+d_r\!\left(\hat{t}_k + \phi\,T_{k-1}\right),   & \phi\in\left[0,\,1 - c\right),
+\end{cases}
 \label{eq:dk_def}
 \end{equation}
-with $\phi\in[0,1)$ and the sampled phase map
-\begin{subequations}\label{eq:phase_index}
-\begin{gather}
-\phi_{k,i} \triangleq \frac{i-\hat{t}_k}{f_s T_k},
-\label{eq:phase_sample_map}\\
-i\in\{\hat{t}_k,\ldots,\hat{t}_{k+1}-1\}.
-\label{eq:phase_index_set}
-\end{gather}
-\end{subequations}
+
+\begin{noteenv}\label{note:phase_origin}
+Centering the phase support on the R-peak targets to strict real time solution as before the next incoming R-peak, the negative phase portion has to rely on prediction.
+A forward-weighted split such as $\phi\in[-0.3,\,0.7)$ as $c=0.3$ might be more suitable for capturing the asymmetry of the cardiac cycle.
+We treat $c$ as an implementation parameter. 
+Normalization by $T_k$ may itself be simplified to counting sampled ticks outward from $\hat t_k$ over a fixed window in practical implementation.
+\end{noteenv}
 
 \begin{noteenv}\label{note:template_window_choice}
-For offline non-causal processing, assuming, R-peaks are accurately detected and bad beats are rejected, we average beats on a common
-normalized phase grid across $N_r$ beats as:
+For offline non-causal processing, assuming R-peaks are accurately detected and bad beats are rejected, we average beats on a common
+normalized phase grid across $N_r$ beats:
 \begin{equation}
 \dhat_r(\phi) = \frac{1}{N_r}\sum_{k=1}^{N_r} y_k(\phi),
 \qquad
@@ -246,25 +250,28 @@ the template is updated from the current learnable beat, while the preceding bea
 the completed template and its detected R-peak. This avoids prediction error at the cancellation
 anchor while adding only one heartbeat of latency:
 \begin{equation}
-\widehat{s}_{k-1}(\phi) \approx y_{k-1}(\phi) - \hat{d}_r^{(k-1)}(\phi).
+\widehat{s}_{k}(\phi) \approx y_{k}(\phi) - \hat{d}_r^{(k-1)}(\phi).
 \label{eq:causal_ilc_buffered}
 \end{equation}
 The buffered mode is therefore preferred whenever the application can tolerate one-beat delay.
 
 \subsection{Strict real-time cancellation.}
 \label{sec:strict_real_time}
-When zero added latency is required, the cancellation anchor must be based on effective R-peak
-prediction rather than the detected current-beat R-peak. At sample $i$, after the
-last detected peak $\hat{t}_k$, the normalized predicted phase is
+When zero added latency is required, we set up the strict real-time cancellation at current $t$, anchored 
+on the the next incoming R-peak at $t_{k+1}$, we obtain
 \begin{equation}
-\hat{s}_k[i] = y[i] - \hat{d}_r\!\left(\hat\phi_{\mathrm{pred}}(i)\right),
-\qquad
-\hat\phi_{\mathrm{pred}}(i)=\frac{i-\hat{t}_k}{f_s\hat{T}_k}.
+\hat{s}(t) = y(t) - \hat{d}^{(k+1)}_r\!\left(\hat\phi(t)\right),
 \label{eq:strict_cancel}
 \end{equation}
-The predictor estimates the next RR interval from a scalar random-walk model. In sample units,
-the observed interval $z_k$ is the difference between consecutive detected R-peak sample instants,
-$z_k=\hat{t}_k-\hat{t}_{k-1}$.
+\begin{noteenv}
+  In practical implementation, Eq.~\ref{eq:strict_cancel} only need to run predicted $\hat{d}^{(k+1)}_r(\hat\phi(t))$
+  before the $t_{k+1}$ arrives, that is $t \in[t_{k+1} - cT_k,t_{k+1})$, when the $t_{k+1}$ arrives, it can run the cancellation
+  based on converged $\hat{d}^{(k+1)}_r(\phi(t))$. In Eq.~\ref{eq:strict_cancel}, $\hat{d}$ includes a phase de-normalization
+  to be able to subtracted from the actual signal $y(t)$, we omit the notation for simplicity.
+
+\end{noteenv}
+For predicting $\hat{\phi}(t)$ for $t \in[t_{k+1} - cT_k,t_{k+1})$, we define
+the observed interval $z_k$ as $z_k=\hat{t}_k-\hat{t}_{k-1}$, and we assume the measurement model as
 \begin{subequations}\label{eq:rr_model}
 \begin{align}
 T_k &= T_{k-1}+w_k, \qquad w_k\sim(0,q),
@@ -273,51 +280,36 @@ z_k &= T_k+v_k, \qquad v_k\sim(0,r).
 \label{eq:rr_measurement}
 \end{align}
 \end{subequations}
-Here $q$ is the beat-to-beat RR-increment variance, representing rate wander such as RSA, and
-$r$ is the R-peak timing-jitter variance. Both can be estimated from the recording or from a
-clean timing reference.
-
-The deployed timing tracker is written as a PI phase-locked loop. We index the update by the
-R-peak that has just arrived: beat $k$ provides the observed interval $z_k$, the update produces
-$\hat T_k$, and $\hat T_k$ is then used to predict beat $k+1$. During the interval preceding
-beat $k$, the phase advances using $\hat T_{k-1}$. At the detected sample $i_k$, define the
-pre-reset phase error as $e_{\phi,k}=\hat\phi(i_k^-)-1$:
-\setcounter{equation}{12}
+Here $q$ is the beat-to-beat RR-increment variance, and
+$r$ is the R-peak timing-jitter variance. We set up the PI tracker as:
 \begin{subequations}\label{eq:pi_tracker}
 \begin{align}
-\hat\phi(i)=\hat\phi(i-1)+\frac{1}{f_s\hat{T}_{k-1}},
+\frac{d\hat\phi}{dt}=\frac{1}{\hat{T}_{k-1}},
 \label{eq:pi_phase_advance}\\
 \hat\phi\leftarrow\hat\phi-K_p e_{\phi,k},
 \label{eq:pi_onset}\\
+e_{\phi,k}=\frac{z_k-\hat{T}_{k-1}}{\hat{T}_{k-1}},
+\label{eq:pi_phase_error}\\
 \hat{T}_k\leftarrow\hat{T}_{k-1}+K_{\mathrm{ss}}\left(z_k-\hat{T}_{k-1}\right).
 \label{eq:pi_rate}
 \end{align}
 \end{subequations}
-At the detected fiducial $i_k$, the phase origin is reset to
-$\hat\phi(i_k)=0$ before beat $k$ is advanced using the newly updated $\hat T_k$.
-The steady-state gain $K_{\mathrm{ss}}$ is designed using the standard scalar Kalman filter
-associated with Eq.~\eqref{eq:rr_model}. The process variance $q$ and measurement variance $r$
-may be calibrated offline from representative recordings or adapted online from previously accepted
-RR intervals. The resulting $K_{\mathrm{ss}}$ is then used in Eq.~\eqref{eq:pi_rate}; no separate
-Kalman recursion is required by the proposed cancellation method. In the present implementation,
-offline calibration is preferred because online $q/r$ adaptation cannot reliably separate RR wander
-from R-peak timing jitter without a sufficiently long accepted-beat history.
-
-$K_p$
-controls onset-jitter smoothing independently: values near one snap the phase to a detected
-fiducial, while smaller values smooth noisy onset corrections. The loop bandwidth should remain
-above the RSA band and below the per-beat detection-noise bandwidth.
-
+\begin{noteenv}\label{note:innovation_gate}
+Eq.~\ref{eq:pi_tracker} provides a basic framework for predicting the $\phi(t)$ for the $k+1$ peak cancellation based PI tracking
+before the arrival of the $t_{k+1}$ peak. Eq.~\ref{eq:pi_rate} is a first order tracking of $\hat{T}_k$ and the gain
+$K_{\mathrm{ss}}$ can be obtained by scalar Kalman filter with pre-calibrated $q$ and $r$ as leaky I control, and $k_p$
+applied in Eq.~\ref{eq:pi_onset} acts as the P control on the actual phase index. Higher order tracking algorithm could be designed
+for certain application needs, and when $k_p$ and $K_{\mathrm{ss}}$ set to zero, it will fall back to re-use previous R-peak anchored phase.
+\end{noteenv}
 \begin{noteenv}\label{note:innovation_gate}
 To prevent abnormal beats from corrupting the timing estimate or the repetitive template, we use the
 normalized RR innovation as a gating metric:
 \begin{equation}
-\nu_k = \frac{z_k-\hat{T}_k^-}{\sqrt{P_k^-+r}}.
+\nu_k = \frac{z_k-\hat{T}_k}{\sqrt{P_k^-+r}}.
 \end{equation}
 Here $P_k^-$ is the prior RR-estimation covariance maintained by the scalar Kalman implementation.
 When $|\nu_k|$ exceeds a threshold $\eta$, the beat is treated as unreliable: the R-peak predictor
-and template update may be frozen, or cancellation may fall back to buffered mode. This gate
-complements the existing RR-ratio and morphology checks.
+and template update may be frozen, or cancellation could fall back to re-use previous R-peak anchored phase indexes.
 \end{noteenv}
 \begin{noteenv}\label{note:realtime_complexity}
 The streaming real-time implementation of the iterative cancellation lookup and subtraction require
@@ -367,7 +359,7 @@ against a null that shares its statistics but destroys R-phase locking, rather t
 error to $d_r$. Define the R-locked energy of a signal $z$ under
 a peak set $P$,
 \begin{equation}
-\mathcal{E}_P[z] \;=\; \Bigl\| \tfrac{1}{|P|}\!\sum_{k\in P} z\bigl(t_k + p/f_s\bigr) \Bigr\|_2^2,
+\mathcal{E}_P[z] \;=\; \Bigl\| \tfrac{1}{|P|}\!\sum_{k\in P} z\bigl(t_k + p\bigr) \Bigr\|_2^2,
 \label{eq:Eop}
 \end{equation}
 evaluated over the main-lobe window around the R-peak ($50$~ms pre, $150$~ms post, $L_{\mathrm{lobe}}$
