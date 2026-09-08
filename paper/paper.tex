@@ -35,7 +35,7 @@
 \title{Cardiac Field Artifact Removal in Ear-EEG Using Repetitive Disturbance Rejection}
 
 \author{
-Wenlin Zhang$^{1}$, Sam Lin$^{1,6}$, Zheng Wang$^{1,2}$, Shuai Li$^{3}$, Ye Yuan$^{1}$,\\
+Wenlin Zhang$^{1}$, Samuel Lin$^{1,6}$, Zheng Wang$^{1,2}$, Shuai Li$^{3}$, Ye Yuan$^{1}$,\\
  Ziteng Ni$^{4}$, Heng Kang Yao$^{2,4}$, Yongcheng Li$^{5}$, Davide Momi$^{7}$%
 \thanks{\footnotesize
 Affiliations: $^{1}$Institute of Brain and Mind, CA, USA; $^{2}$Krembil Centre for Neuroinformatics, 
@@ -181,32 +181,35 @@ extension worthy of further investigation.
 
 
 To instantiate Problem~\ref{prob:cfa_removal} on the discrete sample grid, let $\hat{t}_k$ be
-the estimated $k$-th R-peak sample instant and $f_s$ the sampling rate. The $k$-th beat's
-R-peak-aligned $d_r(\phi(t))$ at integer offset $p$ is defined as
+the estimated $k$-th R-peak sample instant and $f_s$ the sampling rate. Retaining the beat duration
+$T_k$ is essential: the $k$-th beat is first mapped from elapsed time since R into normalized phase:
 \begin{equation}
-d_r^{(k)}\!\left(\hat{t}_k + \frac{p}{f_s}\right)  \triangleq  d_r^{(k)}(\phi_p),
+d_r^{(k)}\!\left(\hat{t}_k + \phi T_k\right) \triangleq d_r^{(k)}(\phi),
 \label{eq:dk_def}
 \end{equation}
-with the discrete phase index and offset range
-\begin{subequations}\label{eq:phase_index_p}
+with $\phi\in[0,1)$ and the sampled phase map
+\begin{subequations}\label{eq:phase_index}
 \begin{gather}
-\phi_p \triangleq \phi\!\left(\hat{t}_k + \frac{p}{f_s}\right) = \frac{p}{f_s T_k},
+\phi_{k,i} \triangleq \frac{i-\hat{t}_k}{f_s T_k},
 \label{eq:phase_sample_map}\\
-p \in \{-n_{\mathrm{pre}},\ldots,-1,0,1,\ldots,n_{\mathrm{post}}\}.
+i\in\{\hat{t}_k,\ldots,\hat{t}_{k+1}-1\}.
 \label{eq:phase_index_set}
 \end{gather}
 \end{subequations}
 
-\begin{noteenv}\label{note:tk_slowly_varying_assumption}
-In Eq.~\eqref{eq:phase_sample_map}, we will drop the explicit $T_k$ dependence in $\phi_p$ as 
- $T_k$ is slowly varying by Assumption~\ref{asm:rpeak_T_varying}, and the phase grid $p$ in Eq.~\eqref{eq:phase_index_set}
-  is approximately shared across beats. 
-\end{noteenv}
-
 \begin{noteenv}\label{note:template_window_choice}
-The template window spans $n_t = n_{\mathrm{pre}} + n_{\mathrm{post}} + 1$ samples ($p=0$ at the
-R-peak). A practical choice is $n_{\mathrm{pre}} = \lfloor 0.05\,f_s \rfloor$ and $n_{\mathrm{post}} = \lfloor 0.55\,f_s \rfloor$ , covering QRS
-onset and the full QRS-T complex by 600ms total duration.
+For offline non-causal processing, assuming, R-peaks are accurately detected and bad beats are rejected, we average beats on a common
+normalized phase grid across $N_r$ beats as:
+\begin{equation}
+\dhat_r(\phi) = \frac{1}{N_r}\sum_{k=1}^{N_r} y_k(\phi),
+\qquad
+y_k(\phi) \equiv y\!\left(\hat t_k + \phi T_k\right).
+\label{eq:est}
+\end{equation}
+Substituting the signal $y_k(\phi)$ by its definition from the discrete time version of Eq.~(\ref{eq:meas}), we obtain
+$\dhat_r(\phi) \equiv d_r(\phi)$, as $s_{n,k}(\phi)$ and $n_k(\phi)$ are averaged to zero over time.
+For more detailed analysis, we can refer to the established template-based BCG/CFA artifact-removal
+idea of \cite{allen1998}, and we will focus on real-time solution of Problem~\ref{prob:cfa_removal} in the next sections.
 \end{noteenv}
 
 % ===========================================================================
@@ -218,63 +221,45 @@ onset and the full QRS-T complex by 600ms total duration.
 \subsection{Buffered Template Averaging}
 
 
-Assuming R-peak accurately detected and bad beats rejected, we could run non-causal averaging to obtain the solution of Problem~\ref{prob:cfa_removal}.
-That is, for a fixed phase index $p$ (offset from the R-peak), the template value is the average, across
-$N_r$ beats, of the EEG sampled at the \emph{same} offset $p$ from each detected R-peak
-$\hat t_k$:
-\begin{equation}
-\dhat_r(p) = \frac{1}{N_r}\sum_{k=1}^{N_r} y_k(p),
-\qquad
-y_k(p) \equiv y\!\left(\hat t_k + p/f_s\right).
-\label{eq:est}
-\end{equation}
-Substituting the signal $y_k(p)$ by its definition from the discrete time version of Eq.~(\ref{eq:meas}), we obtain
-\begin{equation}
-\dhat_r(p) = \underbrace{d_r(p)}_{\text{same every beat}}
-\;+\; \underbrace{\frac{1}{N_r}\sum_{k=1}^{N_r} s_{n,k}(p)
-\;+\; \frac{1}{N_r}\sum_{k=1}^{N_r} n_k(p)}_{\text{averaged to zero over time}}.
-\label{eq:decomp}
-\end{equation}
-Eq.~\eqref{eq:est}--\eqref{eq:decomp} fall back to the established template-based
-BCG/CFA artifact-removal approach of \cite{allen1998}: beats are aligned
-to the cardiac event and averaged without phase normalization. This paper will focus on streaming artifact removal,
-so we keep the template-based representation without introducing phase normalization in the rest of derivation.
+
 
 
 For streaming template learning, the batch average of Eq.~\eqref{eq:est} is replaced by its standard
-exponentially-weighted ILC recursion, updated once per learnable beat at each offset $p$:
+exponentially-weighted ILC recursion, updated once per learnable beat at each phase $\phi$:
 \begin{equation}
-\hat{d}_r^{(k)}(p) = \hat{d}_r^{(k-1)}(p) + a\,\bigl[\,y_k(p) - \hat{d}_r^{(k-1)}(p)\,\bigr],
+\hat{d}_r^{(k)}(\phi) = \hat{d}_r^{(k-1)}(\phi) + a\,\bigl[\,y_k(\phi) - \hat{d}_r^{(k-1)}(\phi)\,\bigr],
 \label{eq:causal_ilc_update}
 \end{equation}
 where $a\in(0,1]$ is a tunable learning gain. The supervisor freezes the update on
 premature/missed beats.
 \begin{noteenv}
-This proposal of using an exponentially-weighted ILC recursion converges to the exponentially averaged template \cite{allen1998} without phase normalization.
-
+  In streaming operation, the averaging in Eq.~\eqref{eq:causal_ilc_update} has to
+run with one beat buffered, as in strict real-time the $k$ R-peak has not arrived yet.
+Once the averaging converges, this ILC recursion converges to the exponentially averaged normalized-phase template of Ref.~\cite{allen1998}.
 \end{noteenv}
 
 \subsection{Real-Time Cancellation}
-\label{sec:strict_real_time}
+\label{sec:real_time}
 
 For applications where one beat of delay is acceptable, buffered cancellation is a strong candidate:
 the template is updated from the current learnable beat, while the preceding beat is cancelled using
 the completed template and its detected R-peak. This avoids prediction error at the cancellation
 anchor while adding only one heartbeat of latency:
 \begin{equation}
-\widehat{s}_{k-1}(p) \approx y_{k-1}(p) - \hat{d}_r^{(k-1)}(p).
+\widehat{s}_{k-1}(\phi) \approx y_{k-1}(\phi) - \hat{d}_r^{(k-1)}(\phi).
 \label{eq:causal_ilc_buffered}
 \end{equation}
 The buffered mode is therefore preferred whenever the application can tolerate one-beat delay.
 
-\paragraph{Strict real-time cancellation.}
+\subsection{Strict real-time cancellation.}
+\label{sec:strict_real_time}
 When zero added latency is required, the cancellation anchor must be based on effective R-peak
 prediction rather than the detected current-beat R-peak. At sample $i$, after the
-last detected peak $\hat{t}_k$, it therefore uses the predicted cardiac timing and the elapsed
-sample offset $\hat{p}(i)=i-\hat{t}_k$ to look up the fixed-lag template:
+last detected peak $\hat{t}_k$, the normalized predicted phase is
 \begin{equation}
-\hat{s}_n[i] = y[i] - \hat{d}_r\!\left(\hat{p}(i)\right),
-\qquad \hat{p}(i)=i-\hat{t}_k.
+\hat{s}_k[i] = y[i] - \hat{d}_r\!\left(\hat\phi_{\mathrm{pred}}(i)\right),
+\qquad
+\hat\phi_{\mathrm{pred}}(i)=\frac{i-\hat{t}_k}{f_s\hat{T}_k}.
 \label{eq:strict_cancel}
 \end{equation}
 The predictor estimates the next RR interval from a scalar random-walk model. In sample units,
@@ -292,19 +277,24 @@ Here $q$ is the beat-to-beat RR-increment variance, representing rate wander suc
 $r$ is the R-peak timing-jitter variance. Both can be estimated from the recording or from a
 clean timing reference.
 
-The deployed timing tracker is written as a PI phase-locked loop. Its internal phase is advanced
-between detected peaks using the estimated rate, and corrected at a fiducial:
+The deployed timing tracker is written as a PI phase-locked loop. We index the update by the
+R-peak that has just arrived: beat $k$ provides the observed interval $z_k$, the update produces
+$\hat T_k$, and $\hat T_k$ is then used to predict beat $k+1$. During the interval preceding
+beat $k$, the phase advances using $\hat T_{k-1}$. At the detected sample $i_k$, define the
+pre-reset phase error as $e_{\phi,k}=\hat\phi(i_k^-)-1$:
 \setcounter{equation}{12}
 \begin{subequations}\label{eq:pi_tracker}
 \begin{align}
-\varphi(i+1)=\left[\varphi(i)+\frac{1}{\hat{T}_k}\right]\bmod 1.
+\hat\phi(i)=\hat\phi(i-1)+\frac{1}{f_s\hat{T}_{k-1}},
 \label{eq:pi_phase_advance}\\
-\varphi\leftarrow\varphi-K_p e_\varphi,
+\hat\phi\leftarrow\hat\phi-K_p e_{\phi,k},
 \label{eq:pi_onset}\\
-\hat{T}_k\leftarrow\hat{T}_k+K_{\mathrm{ss}}\left(z_k-\hat{T}_k\right).
+\hat{T}_k\leftarrow\hat{T}_{k-1}+K_{\mathrm{ss}}\left(z_k-\hat{T}_{k-1}\right).
 \label{eq:pi_rate}
 \end{align}
 \end{subequations}
+At the detected fiducial $i_k$, the phase origin is reset to
+$\hat\phi(i_k)=0$ before beat $k$ is advanced using the newly updated $\hat T_k$.
 The steady-state gain $K_{\mathrm{ss}}$ is designed using the standard scalar Kalman filter
 associated with Eq.~\eqref{eq:rr_model}. The process variance $q$ and measurement variance $r$
 may be calibrated offline from representative recordings or adapted online from previously accepted
