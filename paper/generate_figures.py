@@ -273,7 +273,54 @@ def fig3_synthetic_coherence_sweep(
     dur: float = 75.0,
     seeds: tuple[int, ...] = (11, 13, 17),
 ) -> None:
-    """Generate a synthetic sweep: ECG/CFA coherence vs cancellation performance."""
+    """Generate a synthetic sweep with separate template calibration and cancellation passes."""
+    def apply_calibrated_template(y, fs, est, template, mode, learning_gain=0.06):
+        """Apply a calibrated template with one delayed update per beat."""
+        n = len(y)
+        ra, width = C._template_dims(fs)
+        fids = est["fids"]
+        peaks = np.asarray([fid for fid, _, _ in fids], dtype=int)
+        learnable = np.asarray([lg for _, _, lg in fids], dtype=bool)
+        template = template.copy()
+        out = y.copy()
+        fid_index = 0
+        locked_fid = None
+        for sample in range(n):
+            while fid_index < len(peaks) and sample >= peaks[fid_index]:
+                current_index = fid_index
+                locked_fid = peaks[fid_index]
+                fid_index += 1
+                previous_index = current_index - 1
+                if previous_index >= 0 and learnable[previous_index]:
+                    previous_fid = peaks[previous_index]
+                    lo = max(0, previous_fid - ra)
+                    hi = min(n, locked_fid)
+                    for delayed_sample in range(lo, hi):
+                        offset = delayed_sample - previous_fid + ra
+                        if 0 <= offset < width:
+                            if mode == "buffered":
+                                out[delayed_sample] = y[delayed_sample] - template[offset]
+                            template[offset] += learning_gain * (y[delayed_sample] - template[offset])
+            if mode == "buffered":
+                # The current beat remains buffered until its following R.
+                continue
+            else:
+                # Before the next R arrives, use the loop's predicted anchor;
+                # after lock, use the detected R anchor for the remainder.
+                phase = est["phi"][sample]
+                rr_hat = est["rrhat"][sample]
+                time_to_next = (1.0 - phase) * rr_hat
+                if time_to_next <= 0.30:
+                    anchor = sample - phase * rr_hat * fs
+                else:
+                    anchor = locked_fid
+            if anchor is None:
+                continue
+            offset = int(round(sample - anchor + ra))
+            if 0 <= offset < width:
+                out[sample] = y[sample] - template[offset]
+        return out
+
     predictable_fracs = np.linspace(0.0, 1.0, 9)
     rows = []
 
@@ -282,6 +329,7 @@ def fig3_synthetic_coherence_sweep(
         rls_vals = []
         non_vals = []
         buf_vals = []
+        strict_vals = []
         for seed in seeds:
             t, y, s, cfa, r = synth_eeg_predictability_sweep(fs, dur, seed, pf)
             est = C.phase_estimator(r, fs, True, True)
@@ -301,15 +349,24 @@ def fig3_synthetic_coherence_sweep(
                 continue
 
             e_rls = C.rls_clean(y, r, fs, "noncausal", True, False)
+            # Pass 1: obtain a converged full-record calibration template. Pass
+            # 2: cancel with one delayed learning update per completed beat.
+            _, calibrated_template = C.ilc_clean(y, fs, est, "noncausal", True)
             e_non, _ = C.ilc_clean(y, fs, est, "noncausal", True)
-            e_buf, _ = C.ilc_clean(y, fs, est, "buffered", True)
-            ss = t > (t[-1] * 0.5)
+            e_buf = apply_calibrated_template(y, fs, est, calibrated_template, "buffered")
+            e_strict = apply_calibrated_template(y, fs, est, calibrated_template, "strict")
+            # Compare all methods only after the streaming ILC has warmed up;
+            # the non-causal curve otherwise gets an unfair full-record template.
+            warmup_beats = min(60, len(valid) - 1)
+            warmup_time = valid[warmup_beats] / fs
+            ss = t >= warmup_time
             raw_snr = snr_db_truth(s, y, ss)
 
             coh_vals.append(float(np.mean(cxy[band])))
             rls_vals.append(snr_db_truth(s, e_rls, ss) - raw_snr)
             non_vals.append(snr_db_truth(s, e_non, ss) - raw_snr)
             buf_vals.append(snr_db_truth(s, e_buf, ss) - raw_snr)
+            strict_vals.append(snr_db_truth(s, e_strict, ss) - raw_snr)
 
         if coh_vals:
             rows.append((
@@ -317,6 +374,7 @@ def fig3_synthetic_coherence_sweep(
                 float(np.mean(rls_vals)),
                 float(np.mean(non_vals)),
                 float(np.mean(buf_vals)),
+                float(np.mean(strict_vals)),
             ))
 
     if not rows:
@@ -328,11 +386,13 @@ def fig3_synthetic_coherence_sweep(
     rls_y = arr[order, 1]
     non_y = arr[order, 2]
     buf_y = arr[order, 3]
+    strict_y = arr[order, 4]
 
-    fig, ax = plt.subplots(figsize=(2.9, 1.15))
-    ax.plot(coh_x, rls_y, "o-", color="0.35", lw=1.2, ms=2.4, label="Linear RLS ANC")
-    ax.plot(coh_x, non_y, "s-", color="C0", lw=1.3, ms=2.4, label="Non-causal template")
-    ax.plot(coh_x, buf_y, "^-", color="C2", lw=1.3, ms=2.4, label="Buffered template")
+    fig, ax = plt.subplots(figsize=(3.8, 1.45))
+    ax.plot(coh_x, rls_y, "o-", color="0.35", lw=1.2, ms=2.4, label="RLS cancellation")
+    ax.plot(coh_x, non_y, "s-", color="C0", lw=1.3, ms=2.4, label="Non-causal cancellation [3]")
+    ax.plot(coh_x, buf_y, "^-", color="C2", lw=1.3, ms=2.4, label="Proposed buffered cancellation")
+    ax.plot(coh_x, strict_y, "D-", color="C3", lw=1.3, ms=2.2, label="Strict real-time cancellation")
     ax.set_xlabel("mean beat-window coherence: ECG vs true CFA", fontsize=5)
     ax.set_ylabel("CFA removal (dB)", fontsize=5)
     ax.set_title("Synthetic sweep: predictability vs cancellation", fontsize=5.5)
@@ -342,8 +402,9 @@ def fig3_synthetic_coherence_sweep(
     ax.yaxis.set_major_formatter(FormatStrFormatter("%.1f"))
     ax.tick_params(axis="both", labelsize=4.8)
     ax.grid(alpha=0.3)
-    ax.legend(loc="upper right", bbox_to_anchor=(0.98, 0.74), fontsize=3.8, markerscale=0.75)
-    plt.tight_layout()
+    ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), fontsize=3.8, markerscale=0.75,
+              frameon=False, borderaxespad=0.0)
+    plt.tight_layout(rect=[0.0, 0.0, 0.74, 1.0])
     plt.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
 

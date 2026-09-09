@@ -10,7 +10,8 @@ A single controllable tool wrapping everything we prototyped:
 Run modes (clean --mode):
   noncausal   offline ceiling: template = average over ALL beats, batch ridge RLS
   buffered    ~1-beat latency: cancellation anchored to the DETECTED R (full R-spike removal)
-  causal      zero latency:    cancellation anchored to the PREDICTED R (R-spike limited)
+    causal      zero latency:    one-beat-delayed template; detected-R anchor except
+                                                             during the pre-R prediction window
 
 Per-block toggles (clean, all default ON; use --no-XXX to disable):
   --phase-tracker   PLL rate smoothing + phase prediction (off = raw per-beat intervals)
@@ -118,6 +119,8 @@ def phase_estimator(
     debug=False,
     thr_hi=0.60,
     emph_delta=3.2e-5,
+    kalman_q=None,
+    kalman_r=None,
 ):
     N = len(r)
     sos = signal.butter(2, [8, 20], btype="band", fs=fs, output="sos")
@@ -128,6 +131,10 @@ def phase_estimator(
     peak = 1e-6; base = 0.0; armed = False; refr = 0
     run_max = -1e9; rmi = 0; phi_pk = 0.0
     phi = 0.0; RR_hat = rr0; omega = 1.0 / (RR_hat * fs); last = None
+    kalman_enabled = kalman_q is not None and kalman_r is not None
+    kalman_q_samples = float(kalman_q) * fs ** 2 if kalman_enabled else 0.0
+    kalman_r_samples = float(kalman_r) * fs ** 2 if kalman_enabled else 0.0
+    kalman_covariance = max(kalman_q_samples, 1e-12)
     fids = []; phi_log = np.zeros(N); rr_log = np.zeros(N)
     if debug:
         emph_log = np.zeros(N)
@@ -172,7 +179,13 @@ def phase_estimator(
                     ty = "missed"; phi = 0.0; lg = False
                 else:
                     ty = "normal"; lg = True
-                    if use_pll:
+                    if use_pll and kalman_enabled:
+                        prior_covariance = kalman_covariance + kalman_q_samples
+                        kalman_gain = prior_covariance / (prior_covariance + kalman_r_samples)
+                        RR_hat = RR_hat + kalman_gain * (rr_meas - RR_hat)
+                        kalman_covariance = (1.0 - kalman_gain) * prior_covariance
+                        phi = (phi - 0.30 * perr) % 1.0
+                    elif use_pll:
                         phi = (phi - 0.30 * perr) % 1.0
                         RR_hat = RR_hat + 0.30 * (rr_meas - RR_hat)
                     else:                                    # no PLL: raw interval, hard reseed
@@ -208,6 +221,81 @@ def phase_estimator(
         })
     return out
 
+
+def estimate_kalman_qr(observed_r_samples, reference_r_samples=None, fs=1.0):
+    """Estimate scalar RR random-walk q and timing-noise r offline.
+
+    The process variance is estimated from the observed RR increments after
+    accounting for two adjacent measurement-noise terms. If an offline peak
+    reference is supplied, its robust residual spread estimates measurement
+    jitter directly; otherwise a conservative fraction of RR-difference
+    variance is used.
+    """
+    observed = np.asarray(observed_r_samples, dtype=float)
+    if observed.size < 4:
+        raise ValueError("At least four observed R-peaks are required")
+    rr = np.diff(observed) / float(fs)
+    rr_diff_var = float(np.var(np.diff(rr), ddof=1)) if rr.size > 2 else 0.0
+    r_var = 0.25 * rr_diff_var
+    if reference_r_samples is not None:
+        reference = np.asarray(reference_r_samples, dtype=float)
+        if reference.size:
+            nearest = np.searchsorted(reference, observed)
+            lo = np.clip(nearest - 1, 0, reference.size - 1)
+            hi = np.clip(nearest, 0, reference.size - 1)
+            use_hi = np.abs(observed - reference[hi]) < np.abs(observed - reference[lo])
+            matched = np.where(use_hi, reference[hi], reference[lo])
+            residual = (observed - matched) / float(fs)
+            residual = residual[np.abs(residual - np.median(residual)) < 0.05]
+            if residual.size >= 3:
+                centered = residual - np.median(residual)
+                mad = np.median(np.abs(centered))
+                r_var = float((1.4826 * mad) ** 2)
+    r_var = max(r_var, (0.5 / float(fs)) ** 2)
+    q_var = max(rr_diff_var - 2.0 * r_var, (0.5 / float(fs)) ** 2)
+    return q_var, r_var
+
+
+def kalman_predict_rpeaks(observed_r_samples, fs, q, r, initial_rr=None):
+    """Causally predict each observed beat with a scalar RR Kalman filter.
+
+    ``predicted[k]`` is the prediction of beat ``k`` made from observations
+    through beat ``k-1``; the first two entries are unavailable for causal
+    initialization. The observation at beat ``k`` is incorporated only after
+    its prediction is recorded.
+    """
+    observed = np.asarray(observed_r_samples, dtype=float)
+    if observed.size < 3:
+        raise ValueError("At least three observed R-peaks are required")
+    # q and r are supplied in seconds^2, while the state and observations are
+    # sample indices; convert the covariance units at the filter boundary.
+    q_samples = float(q) * float(fs) ** 2
+    r_samples = float(r) * float(fs) ** 2
+    rr_first = (observed[1] - observed[0]) if initial_rr is None else float(initial_rr)
+    rr_hat = float(rr_first)
+    covariance = max(q_samples, 1e-12)
+    predicted = np.full(observed.size, np.nan, dtype=float)
+    gains = np.full(observed.size, np.nan, dtype=float)
+    sigma_tau = np.full(observed.size, np.nan, dtype=float)
+    innovations = np.full(observed.size, np.nan, dtype=float)
+    for k in range(1, observed.size):
+        predicted[k] = observed[k - 1] + rr_hat
+        measured_rr = observed[k] - observed[k - 1]
+        prior_covariance = covariance + q_samples
+        sigma_tau[k] = np.sqrt(prior_covariance)
+        innovations[k] = (measured_rr - rr_hat) / np.sqrt(prior_covariance + r_samples)
+        gain = prior_covariance / (prior_covariance + r_samples)
+        rr_hat = rr_hat + gain * (measured_rr - rr_hat)
+        covariance = (1.0 - gain) * prior_covariance
+        gains[k] = gain
+    return {
+        "predicted": predicted,
+        "rrhat": rr_hat,
+        "gains": gains,
+        "sigma_tau": sigma_tau,
+        "innovations": innovations,
+    }
+
 # ============================================================================
 # 3. ILC  (three anchoring strategies) + RLS residual
 # ============================================================================
@@ -216,7 +304,12 @@ def _template_dims(fs):
     return ra, Lw
 
 def ilc_clean(y, fs, est, mode, use_ilc, MU=0.06):
-    """Return (clean_after_ilc, template). Honors run mode for anchoring."""
+    """Return (clean_after_ilc, template), with timestamp-aligned output.
+
+    Buffered samples are written at their original beat timestamps when the
+    following R-peak arrives; a streaming caller must hold that beat in a
+    buffer, so its availability is delayed by one beat.
+    """
     N = len(y); ra, Lw = _template_dims(fs)
     fids = est["fids"]; phi = est["phi"]; rrh = est["rrhat"]
     Rs = np.array([f[0] for f in fids]); Rlg = [f[2] for f in fids]
@@ -241,24 +334,57 @@ def ilc_clean(y, fs, est, mode, use_ilc, MU=0.06):
             out[n] = y[n] - template[idx] if idx >= 0 else y[n]
         return out, template
 
+    if mode in ("buffered", "causal"):
+        # Keep learning one beat behind: at the current detected R, add the
+        # samples from the preceding beat that are available without using the
+        # beat currently being cancelled. Buffered cancellation uses the
+        # detected R anchor; strict cancellation predicts only in the final
+        # pre-R window. Buffered output is timestamp-aligned below, although
+        # the completed beat becomes available only at this detected R.
+        fid_index = 0
+        previous_fid = None
+        locked_fid = None
+
     for n in range(N):                                      # streaming: buffered or causal
         idx = -1
-        if mode == "buffered":                              # anchor to nearest DETECTED R
-            j = np.searchsorted(Rs, n); bd = 1e18; lg = True
-            for jj in (j - 1, j):
-                if 0 <= jj < len(Rs):
-                    o = n - Rs[jj] + ra
-                    if 0 <= o < Lw and abs(n - Rs[jj]) < bd:
-                        bd = abs(n - Rs[jj]); idx = o; lg = Rlg[jj]
-        else:                                               # causal: anchor to PREDICTED R (phi,rrhat)
+        if mode in ("buffered", "causal") and fid_index < len(fids) and n >= fids[fid_index][0]:
+            current_fid = int(fids[fid_index][0])
+            previous_lg = fids[fid_index - 1][2] if fid_index > 0 else False
+            if previous_fid is not None and previous_lg:
+                lo = max(0, int(previous_fid) - ra)
+                hi = min(N, current_fid)
+                if hi > lo:
+                    for sample in range(lo, hi):
+                        offset = sample - int(previous_fid) + ra
+                        if 0 <= offset < Lw:
+                            if mode == "buffered":
+                                out[sample] = y[sample] - template[offset]
+                            template[offset] += MU * (y[sample] - template[offset])
+            previous_fid = current_fid
+            locked_fid = current_fid
+            fid_index += 1
+        if mode == "buffered":                              # anchor to latest DETECTED R
+            if locked_fid is None:
+                lg = False
+            else:
+                locked_offset = n - locked_fid + ra
+                # The current beat is held in the streaming buffer until its
+                # following R-peak; only the completed beat is written above.
+                lg = False
+        else:                                                # causal: predict only before next R
             tau = phi[n] * rrh[n]; ttn = (1 - phi[n]) * rrh[n]
             op = ra + int(round(tau * fs)); opre = ra - int(round(ttn * fs))
-            if tau <= 0.50 and 0 <= op < Lw: idx = op
-            elif ttn <= 0.30 and 0 <= opre < ra: idx = opre
+            if locked_fid is None or ttn <= 0.30:
+                if tau <= 0.50 and 0 <= op < Lw: idx = op
+                elif ttn <= 0.30 and 0 <= opre < ra: idx = opre
+            else:
+                locked_offset = n - locked_fid + ra
+                if 0 <= locked_offset < Lw: idx = locked_offset
             lg = True
         if idx >= 0:
             e1 = y[n] - template[idx]
-            if lg: template[idx] += MU * e1
+            if lg and mode not in ("buffered", "causal"):
+                template[idx] += MU * e1
             out[n] = e1
         else:
             out[n] = y[n]
