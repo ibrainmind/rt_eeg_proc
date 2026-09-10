@@ -359,7 +359,16 @@ def fig3_synthetic_coherence_sweep(
             # the non-causal curve otherwise gets an unfair full-record template.
             warmup_beats = min(60, len(valid) - 1)
             warmup_time = valid[warmup_beats] / fs
-            ss = t >= warmup_time
+            # The buffered mode releases a beat only when the following R
+            # arrives, so at the end of the record its last beat is still in
+            # the buffer and no output exists for it. Close the scoring window
+            # at the last released sample, identically for every method, so the
+            # comparison is not charged for that one uncancelled beat.
+            all_peaks = [int(fid) for fid, _, _ in est["fids"]]
+            scored_end = len(t)
+            if len(all_peaks) >= 2:
+                scored_end = min(all_peaks[-2] - ra + Lw, all_peaks[-1])
+            ss = (t >= warmup_time) & (np.arange(len(t)) < scored_end)
             raw_snr = snr_db_truth(s, y, ss)
 
             coh_vals.append(float(np.mean(cxy[band])))
