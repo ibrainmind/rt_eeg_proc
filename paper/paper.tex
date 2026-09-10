@@ -302,8 +302,8 @@ and template update may be frozen, or cancellation could fall back to re-use pre
 \end{noteenv}
 \begin{noteenv}\label{note:realtime_complexity}
 The streaming real-time implementation of the iterative cancellation lookup and subtraction require
-$O(1)$ work per sample and $O(n_t)$ memory. The scalar Kalman PI predictor proposed in this subsection is only a showcase
-of how to obtain a real-time phase-tracking mechanism that can be offloaded to the ECG/R-peak device supplying the timing reference.
+$O(1)$ work per sample and $O(n_t)$ memory. The scalar Kalman PI predictor will be offline calibrated or have dedicated online calibration
+sessions together with possible high order IIR filters for tracking will keep the calculation cycle manageable for embedded applications.
 \end{noteenv}
 % ===========================================================================
 
@@ -329,7 +329,7 @@ resampled onto the ECG sample grid, and only supervisor-approved learnable beats
 Top: chest ECG (green) with buffered detected R-peaks (blue circles) and predicted
 strict-real-time R-peaks (purple crosses). Bottom: original (red) and
 buffered (blue) and strict real-time (purple) ear-EEG. Both outputs use the repetitive template
-of Eq.~\eqref{eq:est}.}
+of Eq.~\eqref{eq:causal_ilc_update}.}
 \label{fig:noncausal_cleanup}
 \end{figure}
 Fig.~\ref{fig:noncausal_cleanup} shows buffered and strict-real-time repetitive disturbance rejection on the
@@ -345,7 +345,6 @@ a peak set $P$ on the normalized-phase grid $\Phi$,
 \begin{equation}
 \mathcal{E}_{true}[y] \;=\; \sum_{\phi\in\Phi_{\mathrm{lobe}}}
 \left[\frac{1}{|P|}\sum_{k\in P} y_k(\phi)\right]^2,
-\qquad y_k(\phi) \equiv y\!\left(t_k + \phi T_k\right),
 \label{eq:Eop}
 \end{equation}
 where $\Phi_{\mathrm{lobe}}$ is the normalized phase grid corresponding to the main-lobe window and

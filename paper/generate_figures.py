@@ -477,16 +477,18 @@ def fig1_real_aligned(
     axes[0].legend(loc="upper right")
 
     # Middle and bottom subplots: EEG channels.
-    axes[1].plot(t, eeg1, lw=0.8, color="C0")
+    axes[1].plot(t, eeg1, lw=0.8, color="C0", label=eeg1_name)
     axes[1].set_ylabel("V")
     axes[1].set_title(f"EEG 1: {eeg1_name}")
     axes[1].grid(alpha=0.25)
+    axes[1].legend(loc="lower right")
 
-    axes[2].plot(t, eeg2, lw=0.8, color="C1")
+    axes[2].plot(t, eeg2, lw=0.8, color="C1", label=eeg2_name)
     axes[2].set_ylabel("V")
     axes[2].set_title(f"EEG 2: {eeg2_name}")
     axes[2].set_xlabel("Time (s)")
     axes[2].grid(alpha=0.25)
+    axes[2].legend(loc="lower right")
 
     # Highlight R-peak neighborhoods on all three subplots.
     for ax in axes:
