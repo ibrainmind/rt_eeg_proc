@@ -117,13 +117,6 @@ phase-asynchronous disturbances and noise $n(t)$ are assumed zero-mean under the
 by preprocessing.
 \end{assumption}
 
-\begin{assumption}\label{asm:neural_not_phase_locked}
-We assume the neural signal can be decomposed as $s(t)=s_r(t)+s_n(t)$, where $s_r(t)$ is the
-heartbeat-repetitive neural component and $s_n(t)$ is the non-repetitive neural component of interest.
-The targeted applications in this paper do not seek to recover $s_r(t)$, so it is dropped from the
-problem formulation.
-\end{assumption}
-
 Using heartbeat phase, we represent the repetitive disturbance as a phase-indexed waveform
 \begin{equation}
 d_r(t) = d_r\!\left(\phi(t)\right), \qquad
@@ -131,6 +124,13 @@ d_r(t) = d_r\!\left(\phi(t)\right), \qquad
 \label{eq:phase_model}
 \end{equation}
 with $\phi(t)\in[0,1)$ the R-peak-aligned cardiac phase. 
+
+\begin{assumption}\label{asm:neural_not_phase_locked}
+We assume the neural signal can be decomposed as $s(t)=s_r(t)+s_n(t)$, where $s_r(t)$ is the
+heartbeat-repetitive neural component and $s_n(t)$ is the non-repetitive neural component of interest.
+The targeted applications in this paper do not seek to recover $s_r(t)$, so it is dropped from the
+problem formulation, then we obtain $\frac{1}{N_r}\sum_{k=1}^{N_r} s_k(\phi) =0$.
+\end{assumption}
 \begin{assumption}\label{asm:rpeak_T_varying}\label{asm:tk_slowly_varying}
 The beat period $T_k$ is assumed to be accurately locked, and slowly varying due to respiratory sinus arrhythmia (RSA), with
 additional small modulation from low-level muscle/motion effects in resting-state recordings.
@@ -420,8 +420,7 @@ this low-channel-count setting.
 \caption{Synthetic sweep of reference predictability versus cancellation performance. The sweep blends
 an ECG-coherent linear artifact with a phase-locked but waveform-decorrelated component at fixed
 artifact power; the x-axis is the mean 1--20~Hz coherence between the averaged ECG beat and the
-averaged \emph{true} CFA beat, and the y-axis is SNR improvement over the contaminated input measured
-against the true neural signal. }
+averaged \emph{true} CFA beat, and the y-axis is CFA component removal in dB calculated from the synthetic simulation }
 \label{fig:synthetic_coh_sweep}
 \end{figure}
 Fig.~\ref{fig:synthetic_coh_sweep} compares RLS, non-causal, one-beat-buffered, and strict-real-time
