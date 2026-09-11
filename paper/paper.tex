@@ -106,7 +106,7 @@ generative models of the ECG waveform itself \cite{sameni2007} are deliberately 
 $r$ denotes the repetitive nature of the disturbance. Its period is heartbeat dependent and is set by 
 ECG R-peak timing, with beat interval
 \begin{equation}
-T_k = t_{k+1} - t_k,
+T_k = t_{k} - t_{k-1},
 \label{eq:Tk}
 \end{equation}
 where $t_k$ is the $k$-th detected R-peak instant.
@@ -120,7 +120,7 @@ by preprocessing.
 Using heartbeat phase, we represent the repetitive disturbance as a phase-indexed waveform
 \begin{equation}
 d_r(t) = d_r\!\left(\phi(t)\right), \qquad
-\phi(t) = \frac{t - t_k}{T_k}, \quad t \in [t_k, t_{k+1}),
+\phi(t) = \frac{t - t_k}{T_{k}}, \quad t \in [t_k, t_{k+1}),
 \label{eq:phase_model}
 \end{equation}
 with $\phi(t)\in[0,1)$ the R-peak-aligned cardiac phase. 
@@ -260,12 +260,12 @@ on the the next incoming R-peak at $t_{k+1}$, we obtain
 
 \end{noteenv}
 For predicting $\hat{\phi}(t)$ for $t \in[t_{k+1} - cT_k,t_{k+1})$, we define
-the observed interval $z_k$ as $z_k=\hat{t}_k-\hat{t}_{k-1}$, and we assume the measurement model as
+the observed interval $z_{k}$ as $z_{k}=t_{k}-t_{k-1}$, and we assume the measurement model as
 \begin{subequations}\label{eq:rr_model}
 \begin{align}
-T_k &= T_{k-1}+w_k, \qquad w_k\sim(0,q),
+T_{k+1} &= T_{k}+w_{k+1}, \qquad w_{k+1}\sim(0,q),
 \label{eq:rr_state}\\
-z_k &= T_k+v_k, \qquad v_k\sim(0,r).
+z_{k} &= T_{k}+v_{k}, \qquad v_{k}\sim(0,r).
 \label{eq:rr_measurement}
 \end{align}
 \end{subequations}
@@ -273,19 +273,19 @@ Here $q$ is the beat-to-beat RR-increment variance, and
 $r$ is the R-peak timing-jitter variance. We set up the PI tracker as:
 \begin{subequations}\label{eq:pi_tracker}
 \begin{align}
-\frac{d\hat\phi}{dt}=\frac{1}{\hat{T}_{k-1}},
+\frac{d\hat\phi}{dt}=\frac{1}{\hat{T}_{k}},
 \label{eq:pi_phase_advance}\\
 \hat\phi\leftarrow\hat\phi-K_p e_{\phi,k},
 \label{eq:pi_onset}\\
-e_{\phi,k}=\frac{z_k-\hat{T}_{k-1}}{\hat{T}_{k-1}},
+e_{\phi,k}=\frac{z_{k}-\hat{T}_{k}}{\hat{T}_{k}},
 \label{eq:pi_phase_error}\\
-\hat{T}_k\leftarrow\hat{T}_{k-1}+K_{\mathrm{ss}}\left(z_k-\hat{T}_{k-1}\right).
+\hat{T}_{k+1}\leftarrow\hat{T}_{k}+K_{\mathrm{ss}}\left(z_{k}-\hat{T}_{k}\right).
 \label{eq:pi_rate}
 \end{align}
 \end{subequations}
 \begin{noteenv}\label{note:innovation_gate}
 Eq.~(\ref{eq:pi_tracker}) provides a basic framework for predicting the $\phi(t)$ for the $k+1$ peak cancellation based PI tracking
-before the arrival of the $t_{k+1}$ peak. Eq.~(\ref{eq:pi_rate}) is a first order tracking of $\hat{T}_k$ and the gain
+before the arrival of the $t_{k+1}$ peak. Eq.~(\ref{eq:pi_rate}) is a first order tracking of $\hat{T}_{k+1}$ and the gain
 $K_{\mathrm{ss}}$ can be obtained by scalar Kalman filter with pre-calibrated $q$ and $r$ as leaky I control, and $k_p$
 applied in Eq.~(\ref{eq:pi_onset}) acts as the P control on the actual phase index. Higher order tracking algorithm could be designed
 for certain application needs, and when $k_p$ and $K_{\mathrm{ss}}$ set to zero, it will fall back to re-use previous R-peak anchored phase.
@@ -294,10 +294,10 @@ for certain application needs, and when $k_p$ and $K_{\mathrm{ss}}$ set to zero,
 To prevent abnormal beats from corrupting the timing estimate or the repetitive template, we use the
 normalized RR innovation as a gating metric:
 \begin{equation}
-\nu_k = \frac{z_k-\hat{T}_k}{\sqrt{P_k^-+r}}.
+\nu_{k+1} = \frac{z_{k+1}-\hat{T}_{k+1}}{\sqrt{P_{k+1}^-+r}}.
 \end{equation}
-Here $P_k^-$ is the prior RR-estimation covariance maintained by the scalar Kalman implementation.
-When $|\nu_k|$ exceeds a threshold $\eta$, the beat is treated as unreliable: the R-peak predictor
+Here $P_{k+1}^-$ is the prior RR-estimation covariance maintained by the scalar Kalman implementation.
+When $|\nu_{k+1}|$ exceeds a threshold $\eta$, the beat is treated as unreliable: the R-peak predictor
 and template update may be frozen, or cancellation could fall back to re-use previous R-peak anchored phase indexes.
 \end{noteenv}
 \begin{noteenv}\label{note:realtime_complexity}
