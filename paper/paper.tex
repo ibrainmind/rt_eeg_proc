@@ -120,7 +120,7 @@ by preprocessing.
 Using heartbeat phase, we represent the repetitive disturbance as a phase-indexed waveform
 \begin{equation}
 d_r(t) = d_r\!\left(\phi(t)\right), \qquad
-\phi(t) = \frac{t - t_k}{T_{k}}, \quad t \in [t_k, t_{k+1}),
+\phi(t) = \frac{t - t_k}{T_{k+1}}, \quad t \in [t_k, t_{k+1}),
 \label{eq:phase_model}
 \end{equation}
 with $\phi(t)\in[0,1)$ the R-peak-aligned cardiac phase. 
@@ -273,14 +273,14 @@ Here $q$ is the beat-to-beat RR-increment variance, and
 $r$ is the R-peak timing-jitter variance. We set up the PI tracker as:
 \begin{subequations}\label{eq:pi_tracker}
 \begin{align}
-\frac{d\hat\phi}{dt}=\frac{1}{\hat{T}_{k}},
+  \hat{T}_{k+1}\leftarrow\hat{T}_{k}+K_{\mathrm{ss}}\left(z_{k}-\hat{T}_{k}\right).
+\label{eq:pi_rate}\\
+\frac{d\hat\phi}{dt}=\frac{1}{\hat{T}_{k+1}},
 \label{eq:pi_phase_advance}\\
 \hat\phi\leftarrow\hat\phi-K_p e_{\phi,k},
 \label{eq:pi_onset}\\
 e_{\phi,k}=\frac{z_{k}-\hat{T}_{k}}{\hat{T}_{k}},
-\label{eq:pi_phase_error}\\
-\hat{T}_{k+1}\leftarrow\hat{T}_{k}+K_{\mathrm{ss}}\left(z_{k}-\hat{T}_{k}\right).
-\label{eq:pi_rate}
+\label{eq:pi_phase_error}
 \end{align}
 \end{subequations}
 \begin{noteenv}\label{note:innovation_gate}
@@ -294,7 +294,7 @@ for certain application needs, and when $k_p$ and $K_{\mathrm{ss}}$ set to zero,
 To prevent abnormal beats from corrupting the timing estimate or the repetitive template, we use the
 normalized RR innovation as a gating metric:
 \begin{equation}
-\nu_{k+1} = \frac{z_{k+1}-\hat{T}_{k+1}}{\sqrt{P_{k+1}^-+r}}.
+\nu_{k+1} = \frac{z_{k}-\hat{T}_{k+1}}{\sqrt{P_{k+1}^-+r}}.
 \end{equation}
 Here $P_{k+1}^-$ is the prior RR-estimation covariance maintained by the scalar Kalman implementation.
 When $|\nu_{k+1}|$ exceeds a threshold $\eta$, the beat is treated as unreliable: the R-peak predictor
@@ -302,15 +302,15 @@ and template update may be frozen, or cancellation could fall back to re-use pre
 \end{noteenv}
 \begin{noteenv}\label{note:realtime_complexity}
 The streaming real-time implementation of the iterative cancellation lookup and subtraction require
-$O(1)$ work per sample and $O(n_t)$ memory. The scalar Kalman PI predictor will be offline calibrated or have dedicated online calibration
-sessions together with possible high order IIR filters for tracking will keep the calculation cycle manageable for embedded applications.
+$O(1)$ cycle cost per sample. The scalar Kalman PI predictor will be offline calibrated or have dedicated online calibration
+sessions, together with possible high order IIR filters for better tracking will still keep the calculation cycle manageable for embedded applications.
 \end{noteenv}
 % ===========================================================================
 
 \section{Experiments}
 \label{sec:experiments}
 
-To evaluate the method we implemented a robust R-peak detector and PI phase tracker for both real and
+To evaluate the method we implemented a robust R-peak detector and the proposed PI phase tracker for both real and
 simulated data \cite{rt_eeg_proc_ekg_ilc}. We will showcase the effectiveness of the proposed real-time repetitive CFA cancellation method 
 in this section.
 
@@ -386,7 +386,7 @@ real-time cancellation, the mean SNR is $17.57$~dB (median $18.20$~dB), with 110
 $20$~dB, and mean $A/\mathrm{SD}=0.339$ (median $0.324$). The decrease from the raw values
 indicates removal of the R-locked component; the strict-mode residual is higher because its
 pre-R cancellation interval uses predicted rather than detected R-peak timing, the design of 
-better R-peak predictor will be beneficial future work.
+better R-peak predictor will be a beneficial future work.
 
 \emph{Coherence view.}
 Fig.~\ref{fig:coh_view} contrasts the same R-locked ECG window against three EEG views: the raw
