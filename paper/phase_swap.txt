@@ -1,0 +1,125 @@
+==============================================================================
+WHAT DOES PHASE WARPING BUY THE FIGURE-1 CANCELLER?
+==============================================================================
+
+gamma = 0  : fixed lag from the R-peak (the shipped ilc_clean path, and
+             what Figure 1 of the paper is drawn with)
+gamma = 1  : normalized cardiac phase (template stretched to each beat)
+gamma = 0.5: square-root warp, halfway between
+
+------------------------------------------------------------------------------
+1. SYNTHETIC, WITH GROUND TRUTH
+------------------------------------------------------------------------------
+SNR improvement over the contaminated input (dB), measured against the true
+neural signal, mean of 3 seeds, 180 s each.
+
+The shipped generator (gen_eeg) places a FIXED-SHAPE PQRST at every beat, so
+its artifact is strictly time-locked to R and gamma=1 cannot help by
+construction. The stretched variant scales each beat's waveform by T_k/Tbar,
+where gamma=1 is correct by construction. Reality is somewhere between.
+
+        artifact  CV_RR |                   non-causal |               one-beat delay
+                        |      g=0    g=0.5     g=1      D |      g=0    g=0.5     g=1      D
+-------------------------------------------------------------------------------------
+     time-locked   3.0% |   +12.84   +12.73  +12.45  -0.39 |   +10.17   +10.11   +9.90  -0.28
+     time-locked   5.8% |   +12.05   +11.77  +10.83  -1.22 |    +9.59    +9.42   +8.80  -0.79
+     time-locked  14.3% |    +9.38    +8.33   +6.72  -2.66 |    +7.93    +7.06   +5.71  -2.23
+ phase-stretched   3.0% |   +12.11   +12.38  +12.48  +0.36 |    +9.74    +9.90   +9.92  +0.18
+ phase-stretched   5.8% |   +10.96   +11.63  +11.83  +0.88 |    +8.90    +9.33   +9.43  +0.53
+ phase-stretched  14.3% |    +6.92    +8.24   +8.85  +1.94 |    +5.93    +6.97   +7.38  +1.45
+
+D = gamma=1 minus gamma=0. Positive means phase warping helps.
+
+------------------------------------------------------------------------------
+2. REAL DATA (no ground truth)
+------------------------------------------------------------------------------
+Variance reduction inside the beat window (dB): how much signal energy the
+canceller actually removes there. Coordinate free, so it privileges neither
+gamma, and computed on the signal ilc_clean returns.
+
+HELD OUT: the non-causal template is built on half the beats and applied to
+the other half. Two traps were live here and both are avoided. Scored in
+sample, gamma=0 looks perfect because a template subtracted from the beats
+that built it annihilates their average identically. And scoring the residual
+by its R-triggered average over ALL beats also reads zero, because the two
+half-templates average back to the full one. The one-beat-delay arm needs no
+split: it subtracts before it updates.
+
+main lobe = -50..+150 ms, late = +200..+500 ms (the template ends at +500 ms).
+
+sub-070/ses-01/run-20 EEG=CROSStop SD ECG=ECG SD
+    422 learnable beats, RR 0.707 s, CV_RR 5.7%, EEG SD 11.5 uV
+    raw R-locked deflection: lobe 12.20 uV (25.6 dB over the shift null), late 2.95 uV (13.4 dB)
+              mode   band |      g=0.0     g=0.5     g=1.0   D(1-0)
+        non-causal   lobe |       4.37      4.34      4.18    -0.19
+        non-causal   late |       0.78      0.76      0.71    -0.06
+    one-beat delay   lobe |       4.09      4.08      3.95    -0.14
+    one-beat delay   late |       0.63      0.61      0.58    -0.05
+
+sub-001/ses-01/run-01 EEG=CROSStop SD ECG=ECG SD
+    359 learnable beats, RR 0.829 s, CV_RR 1.4%, EEG SD 16.7 uV
+    raw R-locked deflection: lobe 12.30 uV (19.5 dB over the shift null), late 2.81 uV (7.5 dB)
+              mode   band |      g=0.0     g=0.5     g=1.0   D(1-0)
+        non-causal   lobe |       2.07      2.07      2.07    +0.00
+        non-causal   late |       0.13      0.13      0.12    -0.01
+    one-beat delay   lobe |       1.89      1.89      1.89    -0.00
+    one-beat delay   late |       0.01      0.01      0.01    -0.00
+
+sub-070/ses-01/run-01 EEG=CROSStop SD ECG=ECG SD
+    349 learnable beats, RR 0.854 s, CV_RR 10.5%, EEG SD 11.8 uV
+    raw R-locked deflection: lobe 8.90 uV (22.7 dB over the shift null), late 3.96 uV (15.9 dB)
+              mode   band |      g=0.0     g=0.5     g=1.0   D(1-0)
+        non-causal   lobe |       2.19      2.19      2.16    -0.03
+        non-causal   late |       0.74      0.72      0.66    -0.09
+    one-beat delay   lobe |       2.04      2.04      2.01    -0.03
+    one-beat delay   late |       0.63      0.62      0.59    -0.04
+
+sub-118/ses-01/run-02 EEG=CROSStop SD ECG=ECG SD
+    418 learnable beats, RR 0.712 s, CV_RR 2.4%, EEG SD 14.1 uV
+    raw R-locked deflection: lobe 1.56 uV (5.3 dB over the shift null), late 5.07 uV (14.5 dB)
+              mode   band |      g=0.0     g=0.5     g=1.0   D(1-0)
+        non-causal   lobe |       0.06      0.06      0.07    +0.00
+        non-causal   late |       0.75      0.98      1.34    +0.59
+    one-beat delay   lobe |      -0.09     -0.09     -0.08    +0.00
+    one-beat delay   late |       0.95      1.18      1.45    +0.49
+
+Removed (dB) is 10*log10(input energy / residual energy) in the band;
+bigger is better. D is gamma=1 minus gamma=0, positive means warping helps.
+
+------------------------------------------------------------------------------
+3. READING
+------------------------------------------------------------------------------
+
+* Synthetic, time-locked artifact: warping COSTS -2.66 to -0.39 dB non-causal,
+  and the cost grows with RR variability -- warping misaligns an artifact
+  that was already aligned.
+* Synthetic, phase-stretched artifact: warping BUYS +0.36 to +1.94 dB,
+  again growing with RR variability. The sign of D is set entirely by which
+  regime the artifact is in, not by the canceller.
+* One beat of latency costs about 2.0 dB against the batch average, and that
+  cost is essentially independent of gamma: the two choices are separable.
+
+* Real data: the sign is NOT uniform, and it is predictable. Sorting the
+  records by where their R-locked energy sits:
+
+                        record  late/lobe   D lobe   D late
+         sub-001/ses-01/run-01       0.23    +0.00    -0.01
+         sub-070/ses-01/run-20       0.24    -0.19    -0.06
+         sub-070/ses-01/run-01       0.44    -0.03    -0.09
+         sub-118/ses-01/run-02       3.25    +0.00    +0.59
+
+  The three lobe-dominated records lose a little from warping (D between
+  -0.19 and 0.00 dB). The one late-dominated record gains clearly in its late
+  window (+0.59 dB non-causal, +0.49 dB one-beat delay). That is the
+  phase-stretched regime appearing in real data.
+
+  The mechanism is simple. Stretching the template by T_k/Tbar displaces bin
+  o by (o-ra)*(T_k/Tbar - 1) samples. Near the R-peak that displacement is
+  ~0, so warping cannot help there and can only blur a sharp, time-locked
+  QRS deflection. Late in the cycle the displacement is large, which is where
+  a genuinely phase-locked component gets realigned. So the late/lobe energy
+  ratio predicts the sign, and it is measurable before choosing gamma.
+
+* Bottom line for Figure 1: it is drawn at gamma=0 on a lobe-dominated
+  record, which is the regime where gamma=0 is right. Adding the warp would
+  change it by -0.19 dB. Figure 1 is not leaving performance on the table.

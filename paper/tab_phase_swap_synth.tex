@@ -1,0 +1,32 @@
+\begin{table}[!ht]
+\centering
+\small
+\caption{Synthetic sweep with ground truth: SNR improvement over the contaminated input
+(dB), measured against the true neural signal, mean of three seeds at 180~s each.
+$\Delta$ is $\gamma{=}1$ minus $\gamma{=}0$.}
+\label{tab:synth}
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+artifact & mode & $\mathrm{CV}_{RR}$ & $\gamma{=}0$ & $\gamma{=}1$ & $\Delta$ \\
+\midrule
+time-locked & non-causal & $3.0\%$ & $+12.84$ & $+12.45$ & $-0.39$ \\
+ & one-beat delay & $3.0\%$ & $+10.17$ & $+9.90$ & $-0.28$ \\
+\addlinespace[2pt]
+ & non-causal & $5.8\%$ & $+12.05$ & $+10.83$ & $-1.22$ \\
+ & one-beat delay & $5.8\%$ & $+9.59$ & $+8.80$ & $-0.79$ \\
+\addlinespace[2pt]
+ & non-causal & $14.3\%$ & $+9.38$ & $+6.72$ & $-2.66$ \\
+ & one-beat delay & $14.3\%$ & $+7.93$ & $+5.71$ & $-2.23$ \\
+\addlinespace[2pt]
+phase-stretched & non-causal & $3.0\%$ & $+12.11$ & $+12.48$ & $+0.36$ \\
+ & one-beat delay & $3.0\%$ & $+9.74$ & $+9.92$ & $+0.18$ \\
+\addlinespace[2pt]
+ & non-causal & $5.8\%$ & $+10.96$ & $+11.83$ & $+0.88$ \\
+ & one-beat delay & $5.8\%$ & $+8.90$ & $+9.43$ & $+0.53$ \\
+\addlinespace[2pt]
+ & non-causal & $14.3\%$ & $+6.92$ & $+8.85$ & $+1.94$ \\
+ & one-beat delay & $14.3\%$ & $+5.93$ & $+7.38$ & $+1.45$ \\
+\addlinespace[2pt]
+\bottomrule
+\end{tabular}
+\end{table}

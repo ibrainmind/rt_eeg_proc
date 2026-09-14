@@ -1,0 +1,3690 @@
+{
+  "source": "paper/dateset_list.txt",
+  "entries": 365,
+  "successful": 365,
+  "n_scramble": 200,
+  "buffered_snr_db": {
+    "n": 365,
+    "mean": -8.305607142335754,
+    "median": -8.286130315001358,
+    "p25": -9.77357447821544,
+    "p75": -6.7138939189257565,
+    "above_20_db": 0
+  },
+  "strict_snr_db": {
+    "n": 365,
+    "mean": 17.568076896182433,
+    "median": 18.20206805258819,
+    "p25": 16.22005474786603,
+    "p75": 20.42574792404412,
+    "above_20_db": 110
+  },
+  "buffered_a_over_sd": {
+    "n": 365,
+    "mean": 6.097717456834171e-05,
+    "median": 0.0,
+    "p25": 0.0,
+    "p75": 0.0,
+    "above_20_db": 0
+  },
+  "strict_a_over_sd": {
+    "n": 365,
+    "mean": 0.33949896851512656,
+    "median": 0.32356017736673004,
+    "p25": 0.24555820260667674,
+    "p75": 0.4294029353457424,
+    "above_20_db": 0
+  },
+  "rows": [
+    {
+      "subject": "sub-001",
+      "run": "01",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.423182429724557,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.788389312348205,
+      "causal_a_over_sd": 0.3529579479019088,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-001",
+      "run": "03",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.56292584258959,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 13.310695125990815,
+      "causal_a_over_sd": 0.17387253873625522,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-006",
+      "run": "08",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.33501305249817,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.848017449669445,
+      "causal_a_over_sd": 0.38769905179814723,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-012",
+      "run": "03",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.316790882819664,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 4.9533314083837325,
+      "causal_a_over_sd": 0.05190130455390513,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-012",
+      "run": "05",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.440706205343574,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.742682358894683,
+      "causal_a_over_sd": 0.30830088375634357,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-012",
+      "run": "10",
+      "eeg_index": 0,
+      "buffered_snr_db": -7.507602124906464,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.343258631378987,
+      "causal_a_over_sd": 0.34405725878456855,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-012",
+      "run": "10",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.432817731262151,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.920496813126487,
+      "causal_a_over_sd": 0.42988820578559855,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-021",
+      "run": "01",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.242930322543318,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.290694041030314,
+      "causal_a_over_sd": 0.32550885370935334,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-021",
+      "run": "04",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.8918082559478435,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.301146279886176,
+      "causal_a_over_sd": 0.40522713583425846,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-021",
+      "run": "06",
+      "eeg_index": 1,
+      "buffered_snr_db": -11.596744571911696,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.88587011135204,
+      "causal_a_over_sd": 0.4004666615891335,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-024",
+      "run": "07",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.5224226834455,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.152361008593573,
+      "causal_a_over_sd": 0.30393920935394947,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-026",
+      "run": "09",
+      "eeg_index": 0,
+      "buffered_snr_db": -8.501068192982883,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.088694832085917,
+      "causal_a_over_sd": 0.20630766986375046,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-034",
+      "run": "13",
+      "eeg_index": 0,
+      "buffered_snr_db": -9.528973521717408,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 8.032023419975863,
+      "causal_a_over_sd": 0.17628464985693734,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-044",
+      "run": "05",
+      "eeg_index": 0,
+      "buffered_snr_db": -11.581236232903631,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 7.71057659492479,
+      "causal_a_over_sd": 0.07583431826638097,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-062",
+      "run": "04",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.373294043876179,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.271818437389902,
+      "causal_a_over_sd": 0.28913786047225054,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-063",
+      "run": "01",
+      "eeg_index": 1,
+      "buffered_snr_db": -13.319392461618133,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 9.062217490952461,
+      "causal_a_over_sd": 0.025226304593645565,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "03",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.413058214550752,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.521401807593797,
+      "causal_a_over_sd": 0.4502328835425223,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "05",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.361252527520297,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.767943767114936,
+      "causal_a_over_sd": 0.616850469246738,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "06",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.079946920432469,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.841273065071604,
+      "causal_a_over_sd": 0.49507079571648843,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "07",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.904444026782787,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.02465495528765,
+      "causal_a_over_sd": 0.32912552043897647,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "09",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.470283336496859,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.876221601240495,
+      "causal_a_over_sd": 0.21496992432394976,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "10",
+      "eeg_index": 1,
+      "buffered_snr_db": -12.473006098562626,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.56862585955232,
+      "causal_a_over_sd": 0.22898212357679862,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "11",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.853882778891093,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.741492473197116,
+      "causal_a_over_sd": 0.4090633192066587,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "12",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.127656454663448,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.870493381079566,
+      "causal_a_over_sd": 0.23091624320549575,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "13",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.03950302328677,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.36824363603589,
+      "causal_a_over_sd": 0.3806275839193287,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "14",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.3426941610873735,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.585006439172272,
+      "causal_a_over_sd": 0.44443417231549437,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "15",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.136735321381042,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.374632610761736,
+      "causal_a_over_sd": 0.47330018956822145,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "18",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.888251491286452,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.579320234141676,
+      "causal_a_over_sd": 0.4418536359365555,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "19",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.010267883167645,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.342407420465904,
+      "causal_a_over_sd": 0.23583647764782822,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "21",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.246316211313289,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.489461233356657,
+      "causal_a_over_sd": 0.28694807326235044,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "24",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.359473038708424,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 6.311242063884631,
+      "causal_a_over_sd": 0.04971661945797688,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "26",
+      "eeg_index": 1,
+      "buffered_snr_db": -13.628277781403504,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.60254888054186,
+      "causal_a_over_sd": 0.34989789075782096,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "27",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.128838175435232,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.87936311829595,
+      "causal_a_over_sd": 0.4275539018942407,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "34",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.165538616515892,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 6.071840304699277,
+      "causal_a_over_sd": 0.0524803740907616,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "36",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.98898949978112,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.025274017193826,
+      "causal_a_over_sd": 0.29125121378426505,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-069",
+      "run": "37",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.601427992451544,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.957428020386164,
+      "causal_a_over_sd": 0.40616880250732346,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "01",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.390050900824627,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.255346679423106,
+      "causal_a_over_sd": 0.4452624250943233,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "02",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.355898794922064,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 23.018478164909084,
+      "causal_a_over_sd": 0.4454986977010901,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "03",
+      "eeg_index": 1,
+      "buffered_snr_db": -13.150432711302521,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.99640199704302,
+      "causal_a_over_sd": 0.2727658332326444,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "05",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.028485657204225,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 23.06483366828133,
+      "causal_a_over_sd": 0.5054939505615236,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "06",
+      "eeg_index": 1,
+      "buffered_snr_db": -3.9655240766819095,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 23.445819311504664,
+      "causal_a_over_sd": 0.5195833438342139,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "08",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.645702507294019,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.414873355820777,
+      "causal_a_over_sd": 0.4443328402773982,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "09",
+      "eeg_index": 0,
+      "buffered_snr_db": -2.5933490172186975,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 24.79902606078752,
+      "causal_a_over_sd": 0.7465000806759591,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "09",
+      "eeg_index": 1,
+      "buffered_snr_db": -1.5649456155175236,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 25.800269682363002,
+      "causal_a_over_sd": 0.8139422126559354,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "11",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.605032513870174,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.62546691933284,
+      "causal_a_over_sd": 0.46206734897043716,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "12",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.243073194100926,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 23.991174368139045,
+      "causal_a_over_sd": 0.5582702404801825,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "18",
+      "eeg_index": 1,
+      "buffered_snr_db": -3.0554783067483178,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.706646545478254,
+      "causal_a_over_sd": 0.530339865045703,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "19",
+      "eeg_index": 1,
+      "buffered_snr_db": -11.447819602509073,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 13.864917280060345,
+      "causal_a_over_sd": 0.13379562530783212,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "20",
+      "eeg_index": 1,
+      "buffered_snr_db": -1.4371681471626852,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.11276706776347,
+      "causal_a_over_sd": 0.32839587459866026,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "21",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.663849983849819,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.777837906640926,
+      "causal_a_over_sd": 0.4089614734532872,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "22",
+      "eeg_index": 1,
+      "buffered_snr_db": -3.1509572203852394,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.515442020495232,
+      "causal_a_over_sd": 0.4894066706332631,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "26",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.696185997596676,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.549171209192064,
+      "causal_a_over_sd": 0.36419773210087836,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-070",
+      "run": "27",
+      "eeg_index": 1,
+      "buffered_snr_db": -3.284809383324641,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.449543216396894,
+      "causal_a_over_sd": 0.2627328902471601,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-072",
+      "run": "02",
+      "eeg_index": 0,
+      "buffered_snr_db": -9.615385193032234,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.716036456732116,
+      "causal_a_over_sd": 0.25325254176318923,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-072",
+      "run": "18",
+      "eeg_index": 0,
+      "buffered_snr_db": -8.998024295461382,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 6.0645262804002975,
+      "causal_a_over_sd": 0.07153930456567827,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-073",
+      "run": "54",
+      "eeg_index": 1,
+      "buffered_snr_db": -12.266159570288375,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 10.366539652402318,
+      "causal_a_over_sd": 0.09128039143170166,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-074",
+      "run": "01",
+      "eeg_index": 1,
+      "buffered_snr_db": -11.142337430734443,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.71051153042273,
+      "causal_a_over_sd": 0.2591955187413054,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-074",
+      "run": "19",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.939507026705634,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.37389329172383,
+      "causal_a_over_sd": 0.27118167375015895,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-075",
+      "run": "28",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.828375804271775,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.665275449665685,
+      "causal_a_over_sd": 0.27177925649402784,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-075",
+      "run": "30",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.168269287151777,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 6.594996198960354,
+      "causal_a_over_sd": 0.07105488120925141,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-075",
+      "run": "48",
+      "eeg_index": 0,
+      "buffered_snr_db": -7.879697307076308,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 10.285905472414978,
+      "causal_a_over_sd": 0.1328612666723218,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-076",
+      "run": "12",
+      "eeg_index": 0,
+      "buffered_snr_db": -7.99009072137578,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 9.552742252995806,
+      "causal_a_over_sd": 0.10447251208665777,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-078",
+      "run": "07",
+      "eeg_index": 0,
+      "buffered_snr_db": -12.423238098568685,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.439921116362,
+      "causal_a_over_sd": 0.25580170333957286,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-078",
+      "run": "37",
+      "eeg_index": 0,
+      "buffered_snr_db": -9.747505168880537,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 5.7660610015495415,
+      "causal_a_over_sd": 0.053325172442933805,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-078",
+      "run": "44",
+      "eeg_index": 0,
+      "buffered_snr_db": -7.019062297193967,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.356563549049733,
+      "causal_a_over_sd": 0.24177689409348568,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-078",
+      "run": "71",
+      "eeg_index": 1,
+      "buffered_snr_db": -3.663655169050939,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 13.482324875820723,
+      "causal_a_over_sd": 0.23034869469793107,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-081",
+      "run": "02",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.687691375037717,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 12.551383917592624,
+      "causal_a_over_sd": 0.16277717448704435,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-081",
+      "run": "61",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.275981968918037,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.70657940237249,
+      "causal_a_over_sd": 0.3597631226523697,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-081",
+      "run": "83",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.268350007857237,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 8.441996111263336,
+      "causal_a_over_sd": 0.08044829305786823,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-081",
+      "run": "84",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.607867308445283,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 5.15312387736021,
+      "causal_a_over_sd": 0.053987301997001386,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-081",
+      "run": "85",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.707110281250493,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 2.427925959475958,
+      "causal_a_over_sd": 0.03705960010202119,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-081",
+      "run": "86",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.121661502877465,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": -0.42694436083713266,
+      "causal_a_over_sd": 0.0,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-082",
+      "run": "01",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.37721816699118,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 13.538778062449232,
+      "causal_a_over_sd": 0.16787407263659593,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-082",
+      "run": "02",
+      "eeg_index": 1,
+      "buffered_snr_db": -12.666719911627924,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 4.642204651013257,
+      "causal_a_over_sd": 0.0519351591246409,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-082",
+      "run": "06",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.942619860503381,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.940918779052552,
+      "causal_a_over_sd": 0.2407582729541856,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-082",
+      "run": "07",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.119637872061617,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 9.460664772149235,
+      "causal_a_over_sd": 0.0973359947751575,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-082",
+      "run": "08",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.54170242978064,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 6.320770309252273,
+      "causal_a_over_sd": 0.13926085684785316,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-082",
+      "run": "09",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.156734559291982,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 8.074232801670684,
+      "causal_a_over_sd": 0.07914139214658161,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-082",
+      "run": "13",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.439203452522446,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 24.64885353503954,
+      "causal_a_over_sd": 0.480274482808799,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-082",
+      "run": "21",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.136371696571114,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 1.0795451414203123,
+      "causal_a_over_sd": 0.0182300720436824,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "03",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.843550237442986,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.824762645713594,
+      "causal_a_over_sd": 0.27178094445064815,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "04",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.373366037769326,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 11.756308110601228,
+      "causal_a_over_sd": 0.142191736471527,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "06",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.005961840289558,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.249578958076864,
+      "causal_a_over_sd": 0.3729046694896792,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "46",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.5636997575035645,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.276003638197977,
+      "causal_a_over_sd": 0.35515352264690964,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "47",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.036410753532416,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.23431961484907,
+      "causal_a_over_sd": 0.32920235600306974,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "48",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.535310642305326,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.117218054504658,
+      "causal_a_over_sd": 0.481554608175109,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "49",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.897054862524623,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.496435220394453,
+      "causal_a_over_sd": 0.26746013264666324,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "50",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.695387918560193,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.15773394303889,
+      "causal_a_over_sd": 0.39536169180434133,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "51",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.552854338341259,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.175060252364574,
+      "causal_a_over_sd": 0.39659611783428034,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "52",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.7138939189257565,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.097394082125668,
+      "causal_a_over_sd": 0.39142541579437695,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "53",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.7147827368064545,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.84087321654215,
+      "causal_a_over_sd": 0.41580991770323195,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "54",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.699226493666747,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.273148090024073,
+      "causal_a_over_sd": 0.32100773801498494,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "55",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.924551072038792,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.49706373470357,
+      "causal_a_over_sd": 0.31820890631919174,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "56",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.784004873638648,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.452257759348484,
+      "causal_a_over_sd": 0.24555820260667674,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-083",
+      "run": "59",
+      "eeg_index": 1,
+      "buffered_snr_db": -3.511382543104445,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.699342545646196,
+      "causal_a_over_sd": 0.5040120056609295,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-085",
+      "run": "49",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.659840253172252,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 12.439619304835013,
+      "causal_a_over_sd": 0.17370085903004817,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-087",
+      "run": "16",
+      "eeg_index": 0,
+      "buffered_snr_db": -10.755663188638652,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.205263131366646,
+      "causal_a_over_sd": 0.3430579913745433,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-087",
+      "run": "24",
+      "eeg_index": 0,
+      "buffered_snr_db": -11.247435698877142,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 4.424796249230062,
+      "causal_a_over_sd": 0.043692557788554284,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-087",
+      "run": "25",
+      "eeg_index": 0,
+      "buffered_snr_db": -13.549731036758532,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": -1.574260975103908,
+      "causal_a_over_sd": 0.0,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-092",
+      "run": "06",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.711472720968079,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.065353921261195,
+      "causal_a_over_sd": 0.3567400955861297,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-092",
+      "run": "07",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.580064719112446,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.899614342916026,
+      "causal_a_over_sd": 0.3018380213926676,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-092",
+      "run": "107",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.428328939462633,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.156938995704724,
+      "causal_a_over_sd": 0.30108236069208855,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-092",
+      "run": "32",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.520842286996317,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.65923133469137,
+      "causal_a_over_sd": 0.32911064931397244,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-092",
+      "run": "56",
+      "eeg_index": 1,
+      "buffered_snr_db": -11.530406553010904,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.717444597179535,
+      "causal_a_over_sd": 0.3783087206918609,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-092",
+      "run": "57",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.683245357030543,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.297310861152715,
+      "causal_a_over_sd": 0.32145901066279225,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-092",
+      "run": "82",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.027561048864817,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.933677919891862,
+      "causal_a_over_sd": 0.2839732428409145,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-094",
+      "run": "31",
+      "eeg_index": 1,
+      "buffered_snr_db": -12.915290768122878,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.81840078384296,
+      "causal_a_over_sd": 0.4021539598002738,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-094",
+      "run": "34",
+      "eeg_index": 1,
+      "buffered_snr_db": -11.309876195627899,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.816404629451203,
+      "causal_a_over_sd": 0.31396845904576565,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-094",
+      "run": "41",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.329288124140998,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.74043656088177,
+      "causal_a_over_sd": 0.360799736084638,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-094",
+      "run": "46",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.882495439921097,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.121557308899895,
+      "causal_a_over_sd": 0.4506268742309226,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-094",
+      "run": "47",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.68798431065435,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.007284842132353,
+      "causal_a_over_sd": 0.3892152515670027,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "102",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.783069762239275,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.462823119732207,
+      "causal_a_over_sd": 0.23426699024091732,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "104",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.861376951229202,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.297203255776473,
+      "causal_a_over_sd": 0.2653839217055441,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "105",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.364020103444562,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.683229232775936,
+      "causal_a_over_sd": 0.3132978825485364,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "16",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.55382791644469,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.866813415166355,
+      "causal_a_over_sd": 0.2985687614428548,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "17",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.844556970025112,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.505192568880506,
+      "causal_a_over_sd": 0.2643556849593075,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "18",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.028302504904625,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.135334179994334,
+      "causal_a_over_sd": 0.2820943131432967,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "19",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.4184344226377,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.5758199800607,
+      "causal_a_over_sd": 0.23338407758238153,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "21",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.022473356163259,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.17233125681673,
+      "causal_a_over_sd": 0.23071675255737037,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "22",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.7071308514905565,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.787910738474615,
+      "causal_a_over_sd": 0.28281192107544556,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "23",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.348147008839227,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.708186253607094,
+      "causal_a_over_sd": 0.19126999090719876,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "24",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.851640712127269,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.665052358649653,
+      "causal_a_over_sd": 0.34891213688536066,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "26",
+      "eeg_index": 1,
+      "buffered_snr_db": -12.00715564106947,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.579942487529909,
+      "causal_a_over_sd": 0.17102946996215432,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "28",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.724526971752628,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.892601071986494,
+      "causal_a_over_sd": 0.3126475682245175,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "29",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.230112237823326,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.0269432012095,
+      "causal_a_over_sd": 0.26473153001053,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "30",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.105922405682488,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.637899246348496,
+      "causal_a_over_sd": 0.23161927966286053,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "31",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.423609868681323,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.136196134868882,
+      "causal_a_over_sd": 0.174241230412942,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "33",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.3324324717969525,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.150933928864358,
+      "causal_a_over_sd": 0.31448160916518025,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "35",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.320790583699077,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.198434270982702,
+      "causal_a_over_sd": 0.3203211287728256,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "36",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.079404469233602,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.58796730355889,
+      "causal_a_over_sd": 0.34529279412556496,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "38",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.914544979723294,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 4.912451616717055,
+      "causal_a_over_sd": 0.05291566483873014,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "41",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.449441280113182,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.813542857220362,
+      "causal_a_over_sd": 0.19420770304487367,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "47",
+      "eeg_index": 0,
+      "buffered_snr_db": -8.971116992199825,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.992045825648265,
+      "causal_a_over_sd": 0.2422184180687455,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "47",
+      "eeg_index": 1,
+      "buffered_snr_db": -3.9388697281301823,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.968833513268056,
+      "causal_a_over_sd": 0.5186558283339248,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "48",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.540142092865093,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.523721470966805,
+      "causal_a_over_sd": 0.22916080967344538,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "49",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.4623153917428,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.68691666023058,
+      "causal_a_over_sd": 0.26066420642976323,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "50",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.354764163117657,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.64890704250175,
+      "causal_a_over_sd": 0.3028320888369383,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "51",
+      "eeg_index": 1,
+      "buffered_snr_db": -11.398922896608912,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.748385958679805,
+      "causal_a_over_sd": 0.17830574448730124,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "52",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.39191898992064,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.122613725565106,
+      "causal_a_over_sd": 0.3475187909865036,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "53",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.999121345213522,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.430621045936325,
+      "causal_a_over_sd": 0.17907875248001542,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "54",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.080276470441046,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.092316296450356,
+      "causal_a_over_sd": 0.24542222358543964,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "55",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.63531678131605,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.498026972001014,
+      "causal_a_over_sd": 0.21711588480352004,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "56",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.410198232765704,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.53345515342185,
+      "causal_a_over_sd": 0.4127188513660906,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "57",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.305080637176802,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.194877959246142,
+      "causal_a_over_sd": 0.3268971250225446,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "58",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.278673219012653,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.165389812990153,
+      "causal_a_over_sd": 0.20239506558214437,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "61",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.056346786653258,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.575629549526912,
+      "causal_a_over_sd": 0.4021350838948539,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "62",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.873204092038563,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.611447907742104,
+      "causal_a_over_sd": 0.2234164765135297,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "63",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.209911613724147,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.38352789315834,
+      "causal_a_over_sd": 0.24910550233077694,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "64",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.077997768527654,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 10.161535226054582,
+      "causal_a_over_sd": 0.09013644844322855,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "65",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.669086060728109,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.931974613157642,
+      "causal_a_over_sd": 0.2331216049315624,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "68",
+      "eeg_index": 0,
+      "buffered_snr_db": -7.797594790148112,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.509735015244885,
+      "causal_a_over_sd": 0.27775420928190525,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "68",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.791684068332373,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 23.63307200764646,
+      "causal_a_over_sd": 0.5186187849165443,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "69",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.815851239530409,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.633061884670234,
+      "causal_a_over_sd": 0.28368274059839277,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "70",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.836311621287274,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.015438186906422,
+      "causal_a_over_sd": 0.2591470513714155,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "71",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.081159632549932,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.6502285932791,
+      "causal_a_over_sd": 0.20697219096304284,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "72",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.848933385347962,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.44380585847501,
+      "causal_a_over_sd": 0.37707847252014887,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "75",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.358908009768765,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.302580721629923,
+      "causal_a_over_sd": 0.20514757130478478,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "77",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.205799347729723,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.031627477059637,
+      "causal_a_over_sd": 0.37313294259557334,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "81",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.4247907009685825,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.778804258507545,
+      "causal_a_over_sd": 0.3421153491913475,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "95",
+      "eeg_index": 1,
+      "buffered_snr_db": -11.304061229133351,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.614156236574516,
+      "causal_a_over_sd": 0.2560518921196349,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "97",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.961604984283305,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.276090398322815,
+      "causal_a_over_sd": 0.20801703428766236,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-095",
+      "run": "99",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.304540759062483,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.41533631656921,
+      "causal_a_over_sd": 0.2762223648203373,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-096",
+      "run": "24",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.673753269555263,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.42070177334277,
+      "causal_a_over_sd": 0.18192758098658787,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-096",
+      "run": "31",
+      "eeg_index": 0,
+      "buffered_snr_db": -9.026649766115169,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.7106090808494,
+      "causal_a_over_sd": 0.23918065677333897,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-096",
+      "run": "33",
+      "eeg_index": 0,
+      "buffered_snr_db": -10.750336847554125,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.995274335909972,
+      "causal_a_over_sd": 0.2750163360826575,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-096",
+      "run": "33",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.901968479916295,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.112111247617527,
+      "causal_a_over_sd": 0.2392565536010663,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-096",
+      "run": "38",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.22529078820327,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.474281892604402,
+      "causal_a_over_sd": 0.32356017736673004,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-111",
+      "run": "02",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.661186158249514,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 3.5444791097681887,
+      "causal_a_over_sd": 0.05241932732210202,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-111",
+      "run": "03",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.263790401679385,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.461889006849276,
+      "causal_a_over_sd": 0.3337399285203286,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-112",
+      "run": "02",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.188480437633279,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.111497298277,
+      "causal_a_over_sd": 0.6202101615347049,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-113",
+      "run": "03",
+      "eeg_index": 0,
+      "buffered_snr_db": -7.101737933919781,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.314026306586662,
+      "causal_a_over_sd": 0.5016182922119229,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-113",
+      "run": "05",
+      "eeg_index": 0,
+      "buffered_snr_db": -7.999521813685742,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.193893064472928,
+      "causal_a_over_sd": 0.5386050155978215,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-113",
+      "run": "05",
+      "eeg_index": 1,
+      "buffered_snr_db": -3.620006642940945,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.07146833381664,
+      "causal_a_over_sd": 0.3680108259272363,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-117",
+      "run": "01",
+      "eeg_index": 1,
+      "buffered_snr_db": 1.5473444313733848,
+      "buffered_a_over_sd": 0.022256668717444725,
+      "causal_snr_db": 21.64399260326684,
+      "causal_a_over_sd": 0.4188609481795419,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-117",
+      "run": "02",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.747225927720131,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.913906996533917,
+      "causal_a_over_sd": 0.32376501593554935,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-117",
+      "run": "03",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.275795525561773,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.652521983533603,
+      "causal_a_over_sd": 0.39734636873642193,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-117",
+      "run": "04",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.68843723238151,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.981868023366165,
+      "causal_a_over_sd": 0.38824311074248635,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-117",
+      "run": "06",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.326688040588025,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.85681529046994,
+      "causal_a_over_sd": 0.40729455937990344,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-117",
+      "run": "07",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.197411859098994,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.421832528465238,
+      "causal_a_over_sd": 0.47476259132576054,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-117",
+      "run": "11",
+      "eeg_index": 0,
+      "buffered_snr_db": -9.950657377695107,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.112938944855387,
+      "causal_a_over_sd": 0.4230771748314292,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-117",
+      "run": "11",
+      "eeg_index": 1,
+      "buffered_snr_db": -2.644416264303496,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 25.985816828264156,
+      "causal_a_over_sd": 0.6421269434225937,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-117",
+      "run": "12",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.320159096840502,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.25603603917187,
+      "causal_a_over_sd": 0.3097640257741283,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-117",
+      "run": "15",
+      "eeg_index": 0,
+      "buffered_snr_db": -6.037424109615433,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.853380283928256,
+      "causal_a_over_sd": 0.4419558142986058,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-117",
+      "run": "15",
+      "eeg_index": 1,
+      "buffered_snr_db": -0.1280183153173108,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 24.245347595774824,
+      "causal_a_over_sd": 0.7083294990544807,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-117",
+      "run": "17",
+      "eeg_index": 0,
+      "buffered_snr_db": -9.185813295463587,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.442332494253474,
+      "causal_a_over_sd": 0.39931026250039897,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-117",
+      "run": "17",
+      "eeg_index": 1,
+      "buffered_snr_db": -2.8792885128283063,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 23.580866713450774,
+      "causal_a_over_sd": 0.6451866828307355,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-118",
+      "run": "03",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.696285574311421,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.82134950991689,
+      "causal_a_over_sd": 0.41448273907607674,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-118",
+      "run": "08",
+      "eeg_index": 1,
+      "buffered_snr_db": -11.77849833438348,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.246229316245277,
+      "causal_a_over_sd": 0.25492337607196935,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-118",
+      "run": "09",
+      "eeg_index": 0,
+      "buffered_snr_db": -5.952263288796022,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.03723215764648,
+      "causal_a_over_sd": 0.3305761920602288,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-118",
+      "run": "09",
+      "eeg_index": 1,
+      "buffered_snr_db": -2.739057292690916,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 23.397024291068078,
+      "causal_a_over_sd": 0.5764742944827765,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-118",
+      "run": "10",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.281133814542132,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.53877520029957,
+      "causal_a_over_sd": 0.213560326633447,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-118",
+      "run": "12",
+      "eeg_index": 0,
+      "buffered_snr_db": -6.589840937282845,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.67770096140569,
+      "causal_a_over_sd": 0.3599881425492637,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-118",
+      "run": "12",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.094030548630309,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 24.313590020483904,
+      "causal_a_over_sd": 0.5349775226464742,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-118",
+      "run": "13",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.927838202648055,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.980324611324825,
+      "causal_a_over_sd": 0.364830526023361,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-118",
+      "run": "15",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.006350835477596,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 24.122713946375264,
+      "causal_a_over_sd": 0.4288170582349985,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-118",
+      "run": "18",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.973452205327126,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.843641310368948,
+      "causal_a_over_sd": 0.2139111286574615,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-118",
+      "run": "24",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.2440299910822326,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.2619891841059,
+      "causal_a_over_sd": 0.4331555403749859,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "05",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.118967939935186,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.13856356777423,
+      "causal_a_over_sd": 0.4074931989003586,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "07",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.3046794598887965,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.492782482361324,
+      "causal_a_over_sd": 0.45519145606115313,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "08",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.145570852400796,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.45871375405699,
+      "causal_a_over_sd": 0.30418713395614727,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "09",
+      "eeg_index": 0,
+      "buffered_snr_db": -10.88381392256073,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.855256344065626,
+      "causal_a_over_sd": 0.3675219650335154,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "09",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.585605673078906,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.214683804652154,
+      "causal_a_over_sd": 0.6145548140538728,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "10",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.393073654719737,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.829935482211594,
+      "causal_a_over_sd": 0.2883946955114527,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "14",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.426355783381398,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.53903246116991,
+      "causal_a_over_sd": 0.5755259678680622,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "21",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.452191324759495,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.814218943633147,
+      "causal_a_over_sd": 0.2805380348365589,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "23",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.143361631676495,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.363367984679856,
+      "causal_a_over_sd": 0.530045311251625,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "24",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.725035991516838,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.72285603918654,
+      "causal_a_over_sd": 0.40577947693584193,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "25",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.627850197208344,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.695118752453332,
+      "causal_a_over_sd": 0.5429947023199485,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "26",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.844170189979021,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.424493974306593,
+      "causal_a_over_sd": 0.45718534499749913,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "28",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.716186761640971,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.601494667404022,
+      "causal_a_over_sd": 0.40121163967074913,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "29",
+      "eeg_index": 0,
+      "buffered_snr_db": -11.287658198982093,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.910284403659661,
+      "causal_a_over_sd": 0.33402056215238896,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "29",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.465570626495946,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.100114278258452,
+      "causal_a_over_sd": 0.4857206156465872,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "31",
+      "eeg_index": 0,
+      "buffered_snr_db": -12.05975309007786,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.37548652781572,
+      "causal_a_over_sd": 0.46738782393818956,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "31",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.042385304039056,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.24977994149378,
+      "causal_a_over_sd": 0.7603800532658334,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "32",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.73175025361523,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.34133320920792,
+      "causal_a_over_sd": 0.2892518226716875,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "34",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.038244663255461,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.22005474786603,
+      "causal_a_over_sd": 0.4781637891127435,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "35",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.850982121510906,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.47025654843094,
+      "causal_a_over_sd": 0.41706077731853,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "39",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.862529520855466,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.384917407892866,
+      "causal_a_over_sd": 0.7287147603315722,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "41",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.479733863773628,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.108875327166277,
+      "causal_a_over_sd": 0.6979634553002279,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "46",
+      "eeg_index": 0,
+      "buffered_snr_db": -7.8681166900147765,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.875026909481537,
+      "causal_a_over_sd": 0.3482594628411431,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "46",
+      "eeg_index": 1,
+      "buffered_snr_db": -3.8802321870754386,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.572946339438975,
+      "causal_a_over_sd": 0.5743353273272944,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "47",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.899626464956144,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.497011466629807,
+      "causal_a_over_sd": 0.6803271808320946,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "48",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.914573432786801,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.734063419111298,
+      "causal_a_over_sd": 0.474862614608028,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "50",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.345812677591745,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.11298441537488,
+      "causal_a_over_sd": 0.4605014491531344,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "51",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.672362131411062,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.35028564519918,
+      "causal_a_over_sd": 0.5117939593623,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "53",
+      "eeg_index": 1,
+      "buffered_snr_db": -2.150242084743936,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.719441814824545,
+      "causal_a_over_sd": 0.7153261492349424,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "54",
+      "eeg_index": 1,
+      "buffered_snr_db": -2.9556583781598307,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.313838676773152,
+      "causal_a_over_sd": 0.584365600527589,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "56",
+      "eeg_index": 0,
+      "buffered_snr_db": -6.79569569904559,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.694172260907187,
+      "causal_a_over_sd": 0.46382090262555503,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "56",
+      "eeg_index": 1,
+      "buffered_snr_db": -2.9035347531502183,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.980759458580984,
+      "causal_a_over_sd": 0.7731664876027139,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "57",
+      "eeg_index": 1,
+      "buffered_snr_db": -2.3891689166382593,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.818053290842,
+      "causal_a_over_sd": 0.3450115058241775,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "59",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.672288098788712,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.464652921317114,
+      "causal_a_over_sd": 0.5529985508580585,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "60",
+      "eeg_index": 0,
+      "buffered_snr_db": -8.26440615543525,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.680183438756156,
+      "causal_a_over_sd": 0.40308336718210225,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "60",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.9278654215149045,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.398353339372537,
+      "causal_a_over_sd": 0.7263583666001968,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "61",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.4508928983582345,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.476952111941863,
+      "causal_a_over_sd": 0.6342479891054466,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "62",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.754035889436066,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 13.996759046723707,
+      "causal_a_over_sd": 0.4128454593689401,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "65",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.32717204853753,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.13114739391566,
+      "causal_a_over_sd": 0.5608009305003239,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "67",
+      "eeg_index": 0,
+      "buffered_snr_db": -13.45691764116725,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.53754797067011,
+      "causal_a_over_sd": 0.2532230900630698,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "67",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.528094633325976,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.836145958487478,
+      "causal_a_over_sd": 0.24772871642421443,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "68",
+      "eeg_index": 0,
+      "buffered_snr_db": -7.574270170111284,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.777538091055796,
+      "causal_a_over_sd": 0.2768480768172637,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "68",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.735539795266314,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.75723785520419,
+      "causal_a_over_sd": 0.3862955334591202,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "74",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.916708769649005,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.919233953752546,
+      "causal_a_over_sd": 0.43286538725300766,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "75",
+      "eeg_index": 1,
+      "buffered_snr_db": -11.511932982904769,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.17997755736542,
+      "causal_a_over_sd": 0.20969823452075684,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "76",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.142833757323771,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.710202360692886,
+      "causal_a_over_sd": 0.3700907579894743,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "78",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.275341021926746,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.857593465152505,
+      "causal_a_over_sd": 0.32157868017759,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "79",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.267539975430998,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.295726293507666,
+      "causal_a_over_sd": 0.39721137040021737,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "81",
+      "eeg_index": 0,
+      "buffered_snr_db": -11.689237657904382,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.308276019665932,
+      "causal_a_over_sd": 0.21512225330939944,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "81",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.2204943969600635,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 23.953309467979192,
+      "causal_a_over_sd": 0.4341550673168735,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "82",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.938337604352554,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 6.380414558866827,
+      "causal_a_over_sd": 0.0594961011703922,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "93",
+      "eeg_index": 1,
+      "buffered_snr_db": -13.254721452638215,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.676405548766379,
+      "causal_a_over_sd": 0.2656101419169847,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "94",
+      "eeg_index": 1,
+      "buffered_snr_db": -63.813310797046455,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.430457982394525,
+      "causal_a_over_sd": 0.353118444252059,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-121",
+      "run": "96",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.318259937303356,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.48520095866568,
+      "causal_a_over_sd": 0.3681749531092653,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "01",
+      "eeg_index": 1,
+      "buffered_snr_db": -11.473568944588163,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.95097975983478,
+      "causal_a_over_sd": 0.3040879532192725,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "02",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.827320397616497,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.89587562907797,
+      "causal_a_over_sd": 0.24041778424161073,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "03",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.02410989661129,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.653806360160264,
+      "causal_a_over_sd": 0.5033451168202098,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "04",
+      "eeg_index": 0,
+      "buffered_snr_db": -9.516480268400619,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.574543510706672,
+      "causal_a_over_sd": 0.25877117843983904,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "04",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.945156050393936,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.28162114571593,
+      "causal_a_over_sd": 0.5293922875122528,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "05",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.736284430291466,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.308199666902883,
+      "causal_a_over_sd": 0.29020502202915643,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "06",
+      "eeg_index": 0,
+      "buffered_snr_db": -6.596307406826032,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.180558303906718,
+      "causal_a_over_sd": 0.3713751681040773,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "06",
+      "eeg_index": 1,
+      "buffered_snr_db": -2.0367704977180363,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 24.3815287821967,
+      "causal_a_over_sd": 0.6227756488475908,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "07",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.8846855247568195,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.715516997155444,
+      "causal_a_over_sd": 0.335924266492143,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "08",
+      "eeg_index": 0,
+      "buffered_snr_db": -13.007607665627772,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.493234551613067,
+      "causal_a_over_sd": 0.20605606455389644,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "08",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.286130315001358,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.50046869953611,
+      "causal_a_over_sd": 0.534050507475037,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "09",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.434882149985977,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.394989310595918,
+      "causal_a_over_sd": 0.5681221306110692,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "10",
+      "eeg_index": 1,
+      "buffered_snr_db": -11.77525676697082,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.15407046134936,
+      "causal_a_over_sd": 0.47347347096996395,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "11",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.8172355271653515,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 13.407086615672263,
+      "causal_a_over_sd": 0.24109644732071453,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "12",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.288016636809653,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.198963981574707,
+      "causal_a_over_sd": 0.7732182069310044,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "13",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.101283962060548,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.88382749855302,
+      "causal_a_over_sd": 0.5409750644736071,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "14",
+      "eeg_index": 1,
+      "buffered_snr_db": -11.8198960014548,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.734556068067903,
+      "causal_a_over_sd": 0.20768372955231573,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "15",
+      "eeg_index": 0,
+      "buffered_snr_db": -10.592220509145243,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.16362636013575,
+      "causal_a_over_sd": 0.2582381714509643,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "15",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.736653105110124,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.586390226180946,
+      "causal_a_over_sd": 0.49089743864565333,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "16",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.416792550049912,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.03553742662876,
+      "causal_a_over_sd": 0.2708502518922336,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "19",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.629810409870213,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.722544626121506,
+      "causal_a_over_sd": 0.1911740208358628,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "20",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.4714127611667935,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.803237167123008,
+      "causal_a_over_sd": 0.4863650561305084,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "21",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.567543323812965,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.150577397440493,
+      "causal_a_over_sd": 0.25016601104853037,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "22",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.246895050599798,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.91279104321785,
+      "causal_a_over_sd": 0.3003847618331265,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "23",
+      "eeg_index": 0,
+      "buffered_snr_db": -8.395133080787058,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.695857378143998,
+      "causal_a_over_sd": 0.31715542623631426,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "23",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.722996449626719,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.570832774161527,
+      "causal_a_over_sd": 0.5776312573093145,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "24",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.875339010369682,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 0.5189236308327593,
+      "causal_a_over_sd": 0.014976198961025974,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "25",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.326299209017128,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.058108806879826,
+      "causal_a_over_sd": 0.2724624206007197,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "27",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.6106541902214975,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.337235994575167,
+      "causal_a_over_sd": 0.4858408817187816,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "29",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.671584675601139,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.019879364261563,
+      "causal_a_over_sd": 0.2684523160046415,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "34",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.078068617257674,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.254078331108474,
+      "causal_a_over_sd": 0.17068107447820224,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "35",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.09076901378368,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.19535008111285,
+      "causal_a_over_sd": 0.4155270403548466,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "38",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.179508367924,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.549290798164236,
+      "causal_a_over_sd": 0.3981992740517228,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "39",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.25588796441419,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 10.872655437999551,
+      "causal_a_over_sd": 0.18350954561457666,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "40",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.56391798086781,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.37035863455415,
+      "causal_a_over_sd": 0.6185442492042232,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "42",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.599945162737612,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.945882625456289,
+      "causal_a_over_sd": 0.21895924836510758,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "44",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.45015372763251,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.760536547049664,
+      "causal_a_over_sd": 0.18943893997033145,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "45",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.958161820196603,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.479662006284485,
+      "causal_a_over_sd": 0.2397771744589123,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "47",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.861898939252397,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.346653447831507,
+      "causal_a_over_sd": 0.22382369734018553,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "69",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.869873637693178,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 12.082565220669064,
+      "causal_a_over_sd": 0.1319214847498726,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "71",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.924797133800098,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.840432266170692,
+      "causal_a_over_sd": 0.21010393361104002,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "76",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.207034142579557,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.9672371656595,
+      "causal_a_over_sd": 0.2868781595634119,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "79",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.352979070304183,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.67785627027279,
+      "causal_a_over_sd": 0.34799151925532845,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "80",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.763799245306283,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.21150561597219,
+      "causal_a_over_sd": 0.45438561835164104,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "81",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.727900813301511,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.09704640304031,
+      "causal_a_over_sd": 0.49109542871974116,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-123",
+      "run": "85",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.501747763619576,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.375711913713609,
+      "causal_a_over_sd": 0.24465395242273225,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "02",
+      "eeg_index": 0,
+      "buffered_snr_db": -10.700109475001558,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.503045032042046,
+      "causal_a_over_sd": 0.31872179099664294,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "02",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.544742141224106,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.35613929082178,
+      "causal_a_over_sd": 0.5255270204824359,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "03",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.046959149078223,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.259205940967217,
+      "causal_a_over_sd": 0.290027926945509,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "04",
+      "eeg_index": 0,
+      "buffered_snr_db": -9.555154457412558,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.33623257993736,
+      "causal_a_over_sd": 0.2744544718323235,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "04",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.298693070279576,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.254732436389354,
+      "causal_a_over_sd": 0.4215530667737433,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "06",
+      "eeg_index": 0,
+      "buffered_snr_db": -8.012748337424961,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.380313221374404,
+      "causal_a_over_sd": 0.3119142952597575,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "07",
+      "eeg_index": 0,
+      "buffered_snr_db": -10.11196151065987,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.311151477908604,
+      "causal_a_over_sd": 0.22441428845053946,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "07",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.16391432312577,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.54730298663292,
+      "causal_a_over_sd": 0.40257066621920684,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "12",
+      "eeg_index": 0,
+      "buffered_snr_db": -8.585157515430978,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.659228968350913,
+      "causal_a_over_sd": 0.3064230132186789,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "12",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.804995029344206,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.50646228001421,
+      "causal_a_over_sd": 0.4757880184675548,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "13",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.722297720700015,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.83216822652203,
+      "causal_a_over_sd": 0.4234846505091365,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "15",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.018667659626972,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 13.279352956447418,
+      "causal_a_over_sd": 0.25873990275282827,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "16",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.510572567573268,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.456346015938845,
+      "causal_a_over_sd": 0.39919770217276296,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "18",
+      "eeg_index": 0,
+      "buffered_snr_db": -8.958908836205621,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.949762329339485,
+      "causal_a_over_sd": 0.2823310100402933,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "22",
+      "eeg_index": 0,
+      "buffered_snr_db": -14.484438792674464,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 15.509580373186203,
+      "causal_a_over_sd": 0.22742546444294645,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "22",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.50529138618239,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.759293220919318,
+      "causal_a_over_sd": 0.41405967155713896,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "23",
+      "eeg_index": 0,
+      "buffered_snr_db": -9.076757867875035,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.072992385856686,
+      "causal_a_over_sd": 0.30499232221980455,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "23",
+      "eeg_index": 1,
+      "buffered_snr_db": -3.906515472238856,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 23.365788304420324,
+      "causal_a_over_sd": 0.5754348406510619,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "24",
+      "eeg_index": 0,
+      "buffered_snr_db": -5.55527356168211,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.030373251792568,
+      "causal_a_over_sd": 0.43930102805586724,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "24",
+      "eeg_index": 1,
+      "buffered_snr_db": -2.881068546307258,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 24.07170496798414,
+      "causal_a_over_sd": 0.6269477092001969,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "25",
+      "eeg_index": 0,
+      "buffered_snr_db": -7.247501132775811,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.42574792404412,
+      "causal_a_over_sd": 0.40454044055294086,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "25",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.092012307932904,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 23.297362694589147,
+      "causal_a_over_sd": 0.5662601054029954,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "27",
+      "eeg_index": 0,
+      "buffered_snr_db": -11.16325822835169,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.285780974161607,
+      "causal_a_over_sd": 0.26552182174508493,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "27",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.710770263752172,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.00859879816925,
+      "causal_a_over_sd": 0.47203454741441697,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "29",
+      "eeg_index": 1,
+      "buffered_snr_db": -13.452828639600312,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.157781623636833,
+      "causal_a_over_sd": 0.2806940447861433,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "30",
+      "eeg_index": 0,
+      "buffered_snr_db": -8.541430374321692,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.629357435112308,
+      "causal_a_over_sd": 0.34833602964688837,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "30",
+      "eeg_index": 1,
+      "buffered_snr_db": -6.682701714115813,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.68741344494141,
+      "causal_a_over_sd": 0.5561759563472057,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "32",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.938670953210365,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.471383882451832,
+      "causal_a_over_sd": 0.3382316540938585,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "34",
+      "eeg_index": 0,
+      "buffered_snr_db": -4.85824825717409,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.957849800273557,
+      "causal_a_over_sd": 0.38800875724738576,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "34",
+      "eeg_index": 1,
+      "buffered_snr_db": -4.7420859415953505,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.462819731906322,
+      "causal_a_over_sd": 0.5689344783827933,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "39",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.164694244357304,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.22703985830402,
+      "causal_a_over_sd": 0.4810902920917683,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "46",
+      "eeg_index": 0,
+      "buffered_snr_db": -9.77357447821544,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.52635809293918,
+      "causal_a_over_sd": 0.3946452734516124,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "46",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.210235555002923,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.775079891710416,
+      "causal_a_over_sd": 0.2793161159210235,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "47",
+      "eeg_index": 0,
+      "buffered_snr_db": -5.60340071053141,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.077302025495825,
+      "causal_a_over_sd": 0.3755743122502565,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "47",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.051249467882047,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.78777060816317,
+      "causal_a_over_sd": 0.5003644089096041,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "48",
+      "eeg_index": 0,
+      "buffered_snr_db": -4.470338295488096,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.07844129990515,
+      "causal_a_over_sd": 0.2536941377033652,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "48",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.705112453912145,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.14214111696334,
+      "causal_a_over_sd": 0.21922569525991276,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "49",
+      "eeg_index": 0,
+      "buffered_snr_db": -12.344960101854014,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 2.46710893373345,
+      "causal_a_over_sd": 0.02764719018831717,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "49",
+      "eeg_index": 1,
+      "buffered_snr_db": -13.455269418871174,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 3.5109363090754195,
+      "causal_a_over_sd": 0.031138813229201034,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "50",
+      "eeg_index": 0,
+      "buffered_snr_db": -8.541442663608212,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.221890195297444,
+      "causal_a_over_sd": 0.3010810854282229,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "50",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.539286416183136,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.85330297419616,
+      "causal_a_over_sd": 0.5225416428720566,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "53",
+      "eeg_index": 1,
+      "buffered_snr_db": -11.07990640902126,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.37981912499232,
+      "causal_a_over_sd": 0.28741006203977276,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "56",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.296169584603888,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.3685215147824,
+      "causal_a_over_sd": 0.3582188260497987,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "57",
+      "eeg_index": 0,
+      "buffered_snr_db": -7.868564192314191,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.76992057699516,
+      "causal_a_over_sd": 0.4294029353457424,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "58",
+      "eeg_index": 0,
+      "buffered_snr_db": -5.6900613461143905,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 21.727427418635948,
+      "causal_a_over_sd": 0.4767623516005447,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "58",
+      "eeg_index": 1,
+      "buffered_snr_db": -5.59193698450315,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 22.974326209436352,
+      "causal_a_over_sd": 0.5977634417845423,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "61",
+      "eeg_index": 0,
+      "buffered_snr_db": -8.023190895196366,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.802876070698574,
+      "causal_a_over_sd": 0.28555218230398866,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "61",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.270261520041771,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.488501074113913,
+      "causal_a_over_sd": 0.38132691771295885,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "62",
+      "eeg_index": 0,
+      "buffered_snr_db": -7.6136541391428425,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.757704558018265,
+      "causal_a_over_sd": 0.2785938877425898,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "62",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.075187696579313,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.148187433424994,
+      "causal_a_over_sd": 0.27290510467109813,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "65",
+      "eeg_index": 0,
+      "buffered_snr_db": -8.691626505893439,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 14.431032390673417,
+      "causal_a_over_sd": 0.18115496930933087,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "68",
+      "eeg_index": 0,
+      "buffered_snr_db": -3.8576525521880347,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.532103603473807,
+      "causal_a_over_sd": 0.2551711919479687,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "68",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.48018010425292,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 10.9953638246411,
+      "causal_a_over_sd": 0.126448872514398,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "69",
+      "eeg_index": 0,
+      "buffered_snr_db": -9.393174521364598,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 13.059610178196426,
+      "causal_a_over_sd": 0.1689942484544336,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "78",
+      "eeg_index": 0,
+      "buffered_snr_db": -7.787828034419595,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.743049404935384,
+      "causal_a_over_sd": 0.3978200891617919,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-124",
+      "run": "78",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.355926423570885,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.696683043561666,
+      "causal_a_over_sd": 0.3363058299517095,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-125",
+      "run": "04",
+      "eeg_index": 1,
+      "buffered_snr_db": -7.263492411507073,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.906097105743772,
+      "causal_a_over_sd": 0.3274355873944613,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-125",
+      "run": "18",
+      "eeg_index": 1,
+      "buffered_snr_db": -8.766351211261064,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.710970011135018,
+      "causal_a_over_sd": 0.2774001885622705,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-125",
+      "run": "25",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.835503926395827,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.95287367058689,
+      "causal_a_over_sd": 0.26740155938126614,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-125",
+      "run": "44",
+      "eeg_index": 1,
+      "buffered_snr_db": -11.55757924389782,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 19.481122317302987,
+      "causal_a_over_sd": 0.24995904671285946,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-125",
+      "run": "45",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.083370624239674,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 20.084554163086636,
+      "causal_a_over_sd": 0.32585477775810506,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-125",
+      "run": "48",
+      "eeg_index": 1,
+      "buffered_snr_db": -14.474067508930679,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.068084851978796,
+      "causal_a_over_sd": 0.25097624242269634,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-125",
+      "run": "49",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.713576807635635,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.20206805258819,
+      "causal_a_over_sd": 0.2936504763818383,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-125",
+      "run": "54",
+      "eeg_index": 1,
+      "buffered_snr_db": -10.724424946385096,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.313778171862445,
+      "causal_a_over_sd": 0.2563853057063934,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-125",
+      "run": "56",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.507038089168393,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 17.335411381256826,
+      "causal_a_over_sd": 0.2652880960055453,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-125",
+      "run": "57",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.09161050542859,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 18.81504442323144,
+      "causal_a_over_sd": 0.28755999720590536,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-125",
+      "run": "74",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.332680061348302,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.980236413040313,
+      "causal_a_over_sd": 0.25085708486270414,
+      "status": "ok"
+    },
+    {
+      "subject": "sub-125",
+      "run": "80",
+      "eeg_index": 1,
+      "buffered_snr_db": -9.405248591953594,
+      "buffered_a_over_sd": 0.0,
+      "causal_snr_db": 16.913845545482012,
+      "causal_a_over_sd": 0.24973130069184907,
+      "status": "ok"
+    }
+  ]
+}

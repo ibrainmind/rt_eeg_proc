@@ -1,0 +1,102 @@
+==============================================================================
+PI PHASE ESTIMATOR: PREDICTED R-PEAK vs ONE-BEAT-DELAY ANCHOR
+sub-070, ses-01, all runs; ekg_ilc_rt.phase_estimator (PLL + supervisor on)
+==============================================================================
+
+Two ways for the canceller to know where the R-peak is:
+
+  one-beat delay  anchor on the DETECTED fiducial t_k. The estimator sets
+                  t_k to the argmax of the raw ECG inside the armed window,
+                  so this anchor is exact. Its cost is latency.
+  strict causal   anchor on the loop's own phase. At sample n the canceller
+                  believes the R-peak was phi*RRhat ago, so the predicted
+                  R-peak is displaced from the true one by -wrap(phi at R)
+                  times RRhat. That is the loop's own perr, in ms.
+
+Analysed: 26 runs, first 600 s each; 24 kept (2 dropped for RR < 500 ms, i.e.
+detector doubling rather than genuine tachycardia).
+
+------------------------------------------------------------------------------
+1. THE ONE-BEAT-DELAY ANCHOR IS EXACT, AND CHEAPER THAN A WHOLE BEAT
+------------------------------------------------------------------------------
+  fiducial vs local |ECG| max (+-60 ms)  median offset  0.00 ms
+  sub-sample refinement of that max      SD             1.13 ms
+  detection latency (declared - R-peak)  median         15.6 ms
+                                         p90            19.5 ms
+  mean RR (the buffered mode's latency)                 762 ms
+
+  The fiducial lands on the R-peak sample every time, so its error is the
+  sampling grid alone, ~1 ms at 256 Hz. Note the detector declares the beat
+  only ~16 ms after it: an exact anchor is available almost immediately.
+  The full beat of latency in the buffered mode is not needed for the ANCHOR
+  -- it is needed to know T_k, and to have the template updated.
+
+------------------------------------------------------------------------------
+2. THE PREDICTED ANCHOR IS UNBIASED BUT JITTERY
+------------------------------------------------------------------------------
+                                       PLL phase  re-anchored
+                                      (as built)t_k-1 + RRhat
+  median signed error (ms)                   3.3          1.4
+  MAD (ms)                                  47.0         23.2
+  SD (ms)                                   57.6         28.2
+  median |error| (ms)                       31.7         15.9
+  p90 |error| (ms)                          89.9         44.3
+  within +-5 ms                               8.2%        17.7%
+  within +-10 ms                              16.4%        33.2%
+  within +-20 ms                              32.5%        59.8%
+  within +-40 ms                              59.9%        87.4%
+
+  Medians over runs. The loop is genuinely locked -- the signed error is a
+  few ms, not a standing offset -- but the spread is tens of ms.
+
+------------------------------------------------------------------------------
+3. HOW MUCH OF THAT JITTER IS AVOIDABLE?
+------------------------------------------------------------------------------
+  One-step-ahead RR prediction error (SD, ms), median over runs:
+    previous RR (random-walk)            28.0
+    EWMA a=0.30 (what the loop uses)     32.6
+    EWMA a=0.10                          37.2
+    constant mean RR                     54.1
+    (RR SD itself                        54.1)
+
+  So beat-to-beat RR on this subject is close to a random walk: the best
+  simple predictor is 'same as last beat'. Two consequences:
+
+  * Re-anchoring on the last fiducial instead of the free-running phase
+    halves the error, 47 -> 23 ms MAD. That
+    part of the jitter is self-inflicted and is a tracker fix, not a
+    fundamental limit.
+  * The remainder, ~28 ms SD, is irreducible for ANY causal
+    predictor here: it is the part of the next RR interval that the past
+    does not determine.
+
+------------------------------------------------------------------------------
+4. THE FIGURE-1 RECORD (sub-070/ses-01/run-20)
+------------------------------------------------------------------------------
+  850 scored beats of 851, 0 premature, 0 missed
+  RR 703 +- 35 ms (CV 5.0%)
+  detection latency        median 15.6 ms, p90 19.5 ms
+  PLL predicted anchor     median +4.0 ms, MAD 43.5 ms, p90 |e| 75.8 ms
+  re-anchored predictor    median +2.3 ms, MAD 20.0 ms, p90 |e| 33.1 ms
+  one-beat-delay anchor    0 ms by construction (+-1.2 ms grid)
+
+------------------------------------------------------------------------------
+5. READING
+------------------------------------------------------------------------------
+
+* The detector is not the problem. Its fiducial is the R-peak sample, every
+  time, and it declares within ~16 ms.
+* The predicted anchor is unbiased but scatters by ~47 ms MAD (p90 ~90 ms).
+  That is wide compared with the QRS deflection the template has to line up
+  with, which is why strict-causal cancellation loses most around the R spike
+  while the buffered mode does not.
+* Half of the gap is a design choice, not physics: the strict-causal path
+  should anchor on the last detected fiducial plus the RR estimate rather
+  than on free-running phase (47 -> 23 ms MAD).
+* Past that, ~28 ms SD is irreducible without information beyond
+  past beat timing -- respiration, for instance, since RSA is what most of
+  this variability is.
+* Practical consequence: one beat of latency buys an exact anchor, and the
+  buffered mode should be the default. A zero-latency mode is worth building
+  only alongside a better RR predictor, and its residual error should be
+  budgeted against the width of the QRS feature being cancelled.

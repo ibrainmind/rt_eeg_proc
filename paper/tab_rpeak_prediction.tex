@@ -1,0 +1,26 @@
+\begin{table}[t]
+\centering
+\small
+\caption{Predicted-R-peak error on sub-070, ses-01, medians over runs. The
+one-beat-delay anchor is the detected fiducial itself, so its error is zero up to the
+sampling grid.}
+\label{tab:rpeak}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+ & PLL phase & $t_{k-1}+\hat{T}$ & one-beat delay \\
+ & (as built) & (re-anchored) & (fiducial) \\
+\midrule
+median signed error (ms) & $+3.3$ & $+1.4$ & $0$ \\
+MAD (ms) & $47.0$ & $23.2$ & $0$ \\
+SD (ms) & $57.6$ & $28.2$ & $0$ \\
+median $|$error$|$ (ms) & $31.7$ & $15.9$ & $0$ \\
+p90 $|$error$|$ (ms) & $89.9$ & $44.3$ & $0$ \\
+within $\pm5$~ms & $8\%$ & $18\%$ & $100\%$ \\
+within $\pm10$~ms & $16\%$ & $33\%$ & $100\%$ \\
+within $\pm20$~ms & $33\%$ & $60\%$ & $100\%$ \\
+within $\pm40$~ms & $60\%$ & $87\%$ & $100\%$ \\
+\midrule
+latency before anchor is usable & $0$ & $0$ & $16$~ms \\
+\bottomrule
+\end{tabular}
+\end{table}

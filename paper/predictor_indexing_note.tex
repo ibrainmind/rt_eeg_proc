@@ -1,0 +1,323 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{fancyvrb}
+\usepackage[colorlinks=true,linkcolor=black,urlcolor=blue]{hyperref}
+\usepackage{titlesec}
+\usepackage{parskip}
+\emergencystretch=2.5em
+\sloppy
+
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.6em}{}
+
+\fvset{fontsize=\footnotesize, frame=single, framesep=4pt,
+        numbersep=8pt, xleftmargin=2.4em}
+
+\newcommand{\Th}{\widehat{T}}
+\newcommand{\tht}{\widehat{t}}
+\newcommand{\ph}{\widehat{\phi}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+
+\title{\vspace{-2em}\bfseries Index audit of the strict-real-time R-peak predictor:\\
+paper Eqs.~(10)--(11) versus the Python implementation}
+\author{Working note for the CFA ear-EEG paper}
+\date{\today}
+
+\begin{document}
+\maketitle
+\vspace{-1.5em}
+
+\noindent
+\textbf{Scope.} This note fixes the meaning of every index in Eqs.~(10)--(11) of
+\code{paper.tex} as they currently stand, then reads the three Python code paths that
+implement them and checks them term by term. Conclusion up front: the convention implied by
+Eqs.~(10b), (11c) and (11d) is self-consistent and is exactly the one the code uses; the one
+place where paper and code part company is the \emph{residual driving the proportional
+(phase) path}, Eq.~(11c), which the code forms against the published anchor while the paper
+forms it against the previous detected peak. For $K_p=1$ they coincide; for $K_p<1$ they do
+not, and the paper's version leaves the anchor offset unclosed. Section~\ref{sec:pfix}
+derives this and gives the one-symbol repair.
+
+% =====================================================================
+\section{The equations as they currently stand}
+
+With $z_k = t_k - t_{k-1}$ the interval between \emph{arrived} R-peaks,
+\begin{subequations}\label{eq:rr}
+\begin{align}
+T_{k+1} &= T_k + w_{k+1}, \qquad w_{k+1}\sim(0,q), \label{eq:rr_a}\\
+z_k     &= T_k + v_k,      \qquad v_k\sim(0,r),     \label{eq:rr_b}
+\end{align}
+\end{subequations}
+and the PI tracker
+\begin{subequations}\label{eq:pi}
+\begin{align}
+\frac{d\ph}{dt} &= \frac{1}{\Th_k}, \label{eq:pi_a}\\
+\ph &\leftarrow \ph - K_p\,e_{\phi,k}, \label{eq:pi_b}\\
+e_{\phi,k} &= \frac{z_k - \Th_k}{\Th_k}, \label{eq:pi_c}\\
+\Th_{k+1} &\leftarrow \Th_k + K_{\mathrm{ss}}\bigl(z_k - \Th_k\bigr). \label{eq:pi_d}
+\end{align}
+\end{subequations}
+
+\subsection{What the indices must therefore mean}
+
+Eqs.~(\ref{eq:pi_c})--(\ref{eq:pi_d}) compare the measurement $z_k$ against $\Th_k$ and emit
+$\Th_{k+1}$. That forces one reading, and only one:
+\begin{equation}
+\boxed{\;\parbox{0.86\linewidth}{\centering $\Th_k$ is the one-step-ahead \emph{prior}
+estimate of the $k$-th interval, formed from data through beat $k-1$.}\;}
+\label{eq:convention}
+\end{equation}
+Two consequences worth stating explicitly, because they are what make the block consistent.
+
+\begin{enumerate}[leftmargin=1.4em]
+\item \textbf{(\ref{eq:pi_d}) is a combined update-and-predict step, not a plain Kalman
+update.} Under the random walk (\ref{eq:rr_a}) the prior for $T_{k+1}$ equals the posterior
+for $T_k$, so ``correct $\Th_k$ with $z_k$'' and ``propagate to beat $k+1$'' are the same
+arithmetic. Writing the left-hand side as $\Th_{k+1}$ is therefore correct and is what the
+code does in a single line.
+
+\item \textbf{(\ref{eq:pi_a}) is the coast rate over the interval that \emph{ends} at
+$t_k$}, i.e.\ valid for $t\in[t_{k-1},t_k)$: it is the reciprocal of the prior for the
+interval currently in progress. Instantiated one beat later, the rate in force during the
+strict-real-time window before $t_{k+1}$ is $1/\Th_{k+1}$ --- which is precisely the quantity
+(\ref{eq:pi_d}) produces at the arrival of $t_k$. So the four lines chain correctly as a
+generic per-beat recursion.
+\end{enumerate}
+
+\noindent
+Chronological order of execution at beat $k$ is (\ref{eq:pi_a}) over the whole interval, then
+at the arrival of $t_k$: (\ref{eq:pi_c}), (\ref{eq:pi_b}), (\ref{eq:pi_d}). The subequation
+order in the paper is $a,b,c,d$; only $b$ and $c$ are transposed relative to execution, which
+is harmless since $c$ is a definition.
+
+\begin{table}[t]
+\centering
+\caption{Reading of each symbol under convention (\ref{eq:convention}). ``Available at''
+means the earliest instant a causal implementation can evaluate it.}
+\label{tab:symbols}
+\small
+\begin{tabular}{@{}l l l@{}}
+\toprule
+Symbol & Meaning & Available at \\
+\midrule
+$T_k$        & true $k$-th RR interval, $t_k-t_{k-1}$                     & never (latent) \\
+$z_k$        & measured $k$-th interval from arrived peaks                & $t_k$ \\
+$\Th_k$      & prior estimate of $T_k$, from data through beat $k-1$      & $t_{k-1}$ \\
+$\tht_k$      & predicted $k$-th peak, $\tht_{k-1}+\Th_k$                   & $t_{k-1}$ \\
+$e_{\phi,k}$ & normalized phase error observed at the $k$-th peak         & $t_k$ \\
+$\Th_{k+1}$  & prior estimate of $T_{k+1}$ = posterior of $T_k$            & $t_k$ \\
+$P_k^-$      & prior variance of $\Th_k$                                   & $t_{k-1}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+\section{The three code paths}
+
+\subsection{\code{kalman\_predict\_rpeaks} --- the scalar Kalman predictor}
+\code{src/ekg\_ilc\_rt.py}, lines 281--290:
+\begin{Verbatim}[fontsize=\scriptsize,numbers=left,firstnumber=281]
+for k in range(1, observed.size):
+    predicted[k] = observed[k - 1] + rr_hat
+    measured_rr = observed[k] - observed[k - 1]
+    prior_covariance = covariance + q_samples
+    sigma_tau[k] = np.sqrt(prior_covariance)
+    innovations[k] = (measured_rr - rr_hat) / np.sqrt(prior_covariance + r_samples)
+    gain = prior_covariance / (prior_covariance + r_samples)
+    rr_hat = rr_hat + gain * (measured_rr - rr_hat)
+    covariance = (1.0 - gain) * prior_covariance
+\end{Verbatim}
+The loop-carried variable \code{rr\_hat} is read \emph{before} it is written, so at the top of
+iteration $k$ it holds $\Th_k$ and at the bottom it holds $\Th_{k+1}$ --- convention
+(\ref{eq:convention}) verbatim. Initialization \code{rr\_hat = observed[1]-observed[0]}
+$=z_1$ seeds $\Th_1$, and \code{predicted[1] = observed[0] + rr\_hat} is $\tht_1=t_0+\Th_1$.
+Likewise \code{covariance} holds the posterior and \code{prior\_covariance} $=P_k^-$.
+
+This path has \emph{no} explicit $K_p$: the anchor is rebuilt on \code{observed[k-1]}, the
+arrived peak, every beat. That is a hard phase reset, i.e.\ $K_p=1$ in (\ref{eq:pi_b}).
+
+\subsection{\code{run\_as\_built} --- the shipped PI structure}
+\code{src/pll\_design.py}, lines 63--69:
+\begin{Verbatim}[numbers=left,firstnumber=63]
+for k in range(1, len(t)):
+    pred = that + That
+    e[k - 1] = pred - t[k]
+    meas = t[k] + v[k]
+    that = pred + kp * (meas - pred)          # only kp of the error removed
+    if k >= 2:
+        That = That + alpha * ((meas - (t[k - 1] + v[k - 1])) - That)
+\end{Verbatim}
+Here \code{That} $=\Th_k$ on entry, \code{that} is the \emph{published} anchor
+$\tht_{k-1}$ after correction, and \code{pred} $=\tht_k^-=\tht_{k-1}+\Th_k$. The integral path
+(line 69) updates from \code{meas - prev\_meas}, which is exactly the paper's
+$z_k=t_k-t_{k-1}$ (jitter included), with $K_{\mathrm{ss}}=$ \code{alpha}. The proportional
+path (line 67) uses \code{meas - pred}, the \emph{anchor} residual. These are two different
+residuals; Section~\ref{sec:pfix} is about that.
+
+\subsection{\code{causal\_modes.py} --- the strict arm that actually cancels}
+\code{src/causal\_modes.py}, lines 82--125 (abridged):
+\begin{Verbatim}[numbers=none]
+for k in range(len(r_samples)):
+    ...
+    t_pred = r_samples[k - 1] / fs + T_hat        # line  94
+    w_pred = (T_hat / T_bar) ** gamma             # line  96
+    ...
+    preds["strict"] = np.interp((ts - fid_pred / fs) / w_pred, c_grid, m["strict"])
+    ...
+    T_hat += ewma * (Tk - T_hat)                  # line 125, end of iteration
+\end{Verbatim}
+Same convention again, and this is the one that matters for Eq.~(9): both the
+\emph{anchor} (\code{t\_pred}, line 94) and the \emph{phase rate} (\code{w\_pred}, line 96 ---
+the period that de-normalizes $\ph$) are taken from the \code{T\_hat} that is the prior for
+the beat being predicted, because the update on line 125 is deferred to the end of the
+iteration. This confirms item 2 of Sec.~1.1: the rate in force while predicting beat $k$ is
+$1/\Th_k$, hence $1/\Th_{k+1}$ while predicting beat $k+1$.
+
+% =====================================================================
+\section{Term-by-term correspondence}
+
+\begin{table}[h]
+\centering
+\caption{Eqs.~(\ref{eq:rr})--(\ref{eq:pi}) against the implementation. \checkmark\ = exact
+match.}
+\label{tab:map}
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.26\linewidth}
+                   >{\raggedright\arraybackslash}p{0.36\linewidth}
+                   >{\raggedright\arraybackslash}p{0.21\linewidth} c@{}}
+\toprule
+Paper & Code & File:line & \\
+\midrule
+(\ref{eq:rr_a}) $T_{k+1}=T_k+w_{k+1}$
+  & \code{prior\_covariance = covariance + q\_samples}
+  & \code{ekg\_ilc\_rt.py}:284 & \checkmark \\
+(\ref{eq:rr_b}) $z_k=T_k+v_k$
+  & \code{measured\_rr = observed[k] - observed[k-1]}
+  & \code{ekg\_ilc\_rt.py}:283 & \checkmark \\
+$\tht_k=\tht_{k-1}+\Th_k$
+  & \code{predicted[k] = observed[k-1] + rr\_hat}
+  & \code{ekg\_ilc\_rt.py}:282 & \checkmark \\
+(\ref{eq:pi_a}) $d\ph/dt=1/\Th_k$
+  & \code{w\_pred = (T\_hat / T\_bar) ** gamma}
+  & \code{causal\_modes.py}:96 & \checkmark \\
+(\ref{eq:pi_b}) $\ph \leftarrow \ph - K_p e_{\phi,k}$
+  & \code{that = pred + kp * (meas - pred)}
+  & \code{pll\_design.py}:67 & see \S\ref{sec:pfix} \\
+(\ref{eq:pi_c}) $e_{\phi,k}=(z_k-\Th_k)/\Th_k$
+  & \code{(meas - prev\_meas) - That} (I-path only)
+  & \code{pll\_design.py}:69 & see \S\ref{sec:pfix} \\
+(\ref{eq:pi_d}) $\Th_{k+1}=\Th_k+K_{\mathrm{ss}}(z_k-\Th_k)$
+  & \code{rr\_hat = rr\_hat + gain * (measured\_rr - rr\_hat)}
+  & \code{ekg\_ilc\_rt.py}:288 & \checkmark \\
+$K_{\mathrm{ss}}$
+  & \code{gain = prior\_cov / (prior\_cov + r\_samples)}; \code{alpha}
+  & \code{ekg\_ilc\_rt.py}:287 & \checkmark \\
+$K_p$
+  & \code{kp} ($=0.30$); implicit $1$ in the Kalman path
+  & \code{pll\_design.py}:67 & \checkmark \\
+(12) $\nu=(z-\Th)/\sqrt{P^-+r}$
+  & \code{(measured\_rr - rr\_hat)/sqrt(prior\_cov + r\_samples)}
+  & \code{ekg\_ilc\_rt.py}:286 & index, \S\ref{sec:nits} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent
+Sign check on (\ref{eq:pi_b}): a late beat gives $z_k>\Th_k$, so $e_{\phi,k}>0$; the running
+phase at the true peak has already passed $1$, and $\ph\leftarrow\ph-K_pe_{\phi,k}$ pulls it
+back. Correct as written, and $K_p=1$ reproduces the hard reset of
+\code{kalman\_predict\_rpeaks}.
+
+% =====================================================================
+\section{The one real discrepancy: which residual drives the P path}
+\label{sec:pfix}
+
+Let $a_k \triangleq \tht_k - t_k$ be the leftover offset of the \emph{published} anchor after
+the beat-$k$ correction, and let $\tht_k^- = \tht_{k-1}+\Th_k$ be the pre-correction
+prediction. The code's residual on line 67 is
+\begin{equation}
+\rho_k \;\triangleq\; t_k - \tht_k^- \;=\; (t_k - t_{k-1}) - a_{k-1} - \Th_k
+       \;=\; \bigl(z_k - \Th_k\bigr) - a_{k-1},
+\label{eq:rho}
+\end{equation}
+whereas the paper's (\ref{eq:pi_c}) uses $\Th_k e_{\phi,k} = z_k - \Th_k$, i.e.\ (\ref{eq:rho})
+\emph{without} the $a_{k-1}$ term. (Phase converts to time through the anchor: with
+$\ph=(t-A)/\Th_k$, a correction $\ph\leftarrow\ph-K_pe_{\phi,k}$ is a shift
+$A\leftarrow A+K_p\Th_k e_{\phi,k}$.) Propagating each:
+\begin{align}
+\text{code: } \; & \tht_k = \tht_k^- + K_p\rho_k
+   \;\Longrightarrow\; a_k = -(1-K_p)\,\rho_k = -(1-K_p)\bigl[(z_k-\Th_k) - a_{k-1}\bigr],
+   \label{eq:acode}\\
+\text{paper: } \; & \tht_k = \tht_k^- + K_p\bigl(z_k-\Th_k\bigr)
+   \;\Longrightarrow\; a_k = a_{k-1} - (1-K_p)\bigl(z_k-\Th_k\bigr).
+   \label{eq:apaper}
+\end{align}
+Eq.~(\ref{eq:acode}) is a first-order loop in $a_k$ with pole $(1-K_p)$: stable for
+$0<K_p<2$, and $a_k\to0$ once the innovations whiten. Eq.~(\ref{eq:apaper}) has pole $1$: the
+anchor offset \emph{integrates} the innovation sequence and random-walks away. The two agree
+only at $K_p=1$, where both give $a_k\equiv0$.
+
+So (\ref{eq:pi_c}) as literally written does not close the phase loop unless $K_p=1$, and the
+shipped gain is $K_p=0.30$. The cause is that one symbol $z_k$ is being asked to serve both
+paths, but the code deliberately uses different references for them: the I path measures
+\emph{peak to peak} (so its innovation is the RR innovation the Kalman gain was designed for),
+while the P path measures \emph{prediction to peak} (so it sees, and removes, accumulated
+anchor error).
+
+\subsection{Minimal repair}
+
+Define the P-path error from the running phase at the instant the peak arrives rather than
+from $z_k$ alone. At $t=t_k^-$ the tracker's phase is
+$\ph(t_k^-) = (t_k-\tht_{k-1})/\Th_k$, so
+\begin{equation}
+e_{\phi,k} \;=\; \ph(t_k^-) - 1 \;=\; \frac{t_k - \tht_{k-1}}{\Th_k} - 1
+            \;=\; \frac{t_k - \tht_k^-}{\Th_k},
+\label{eq:fix}
+\end{equation}
+which is $\rho_k/\Th_k$ and matches line 67 exactly. Note (\ref{eq:fix}) reduces to the
+current (\ref{eq:pi_c}) whenever the previous anchor was exact ($\tht_{k-1}=t_{k-1}$), so
+nothing else in the section changes, and the I path keeps $z_k-\Th_k$ as in
+(\ref{eq:pi_d}). One display line, no renumbering.
+
+% =====================================================================
+\section{Remaining index/notation items}
+\label{sec:nits}
+
+\begin{enumerate}[leftmargin=1.4em]
+\item \textbf{Eq.~(12) is correct but one beat later than (\ref{eq:pi_c}).} Under
+(\ref{eq:convention}), $\Th_{k+1}$ \emph{is} the prior for $T_{k+1}$, so
+$\nu_{k+1}=(z_{k+1}-\Th_{k+1})/\sqrt{P_{k+1}^-+r}$ is a valid innovation. But its numerator
+is the same quantity as (\ref{eq:pi_c})'s, evaluated at $k+1$, and the code computes it at $k$
+(line 286) alongside the gain that (\ref{eq:pi_d}) uses. Writing
+$\nu_k=(z_k-\Th_k)/\sqrt{P_k^-+r}$ makes the shared innovation visible and puts the gate at
+the same instant as the phase correction.
+
+\item \textbf{$\Th_k$ is defined twice.} The line before Eq.~(5) sets
+$\Th_k=\tht_k-t_{k-1}$, which is the \emph{measured} interval, i.e.\ $z_k$ --- not a prior
+estimate. Eq.~(5)'s pre-arrival branch needs the predictor output. (Also a missing hat on
+$t_{k-1}$ there.)
+
+\item \textbf{Prediction window notation.} The text writes
+$t\in[t_{k+1}-cT_k,\,t_{k+1})$; the note above Eq.~(10) already writes
+$[\tht_{k+1}-c\Th_{k+1},\,\tht_{k+1})$, which is the causal form and carries the right index on
+the period.
+
+\item \textbf{Gain symbol case.} \code{\$k\_p\$} appears twice in the note after Eq.~(11)
+where (\ref{eq:pi_b}) defines $K_p$.
+
+\item \textbf{The $K_p{=}K_{\mathrm{ss}}{=}0$ fallback claim.} With $K_p=0$ the anchor is
+never re-referenced to a detected peak --- (\ref{eq:acode}) gives $a_k=a_{k-1}-(z_k-\Th_k)$,
+a free-running oscillator. ``Re-use previous R-peak anchored phase'' is $K_p=1$,
+$K_{\mathrm{ss}}=0$: hard re-anchor each beat, frozen period. That is also the regime
+\code{kalman\_predict\_rpeaks} implements.
+\end{enumerate}
+
+\end{document}

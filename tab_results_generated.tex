@@ -1,0 +1,16 @@
+\begin{table}[!ht]
+\centering
+\caption{Steady-state artifact SNR (semi-synthetic; generated).}
+\label{tab:results}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Method & Latency & SNR (dB) \\
+\midrule
+Input (contaminated) & -- & 1.27 \\
+Linear RLS ANC & causal & 7.62 \\
+Proposed (causal) & 0 & 3.00 \\
+Proposed (buffered) & ~1 beat & 9.49 \\
+Proposed (non-causal) & offline & 10.54 \\
+\bottomrule
+\end{tabular}
+\end{table}

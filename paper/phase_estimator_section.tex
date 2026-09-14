@@ -2,6 +2,7 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb}
 \usepackage{amsthm}
+\usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage[hidelinks]{hyperref}
 
@@ -16,6 +17,10 @@
 \title{ECG Phase Estimator for Cardiac Artifact Removal}
 \author{Extracted from: Cardiac Field Artifact Removal in Ear-EEG Using Repetitive Disturbance Rejection}
 \date{}
+
+\input{rpeak_numbers}
+\input{rpeak_bode_numbers}
+\input{pll_design_numbers}
 
 \begin{document}
 
@@ -259,5 +264,305 @@ Contaminated EEG $y(t)$, cleaned output, and ground-truth neural signal $s(t)$ o
 window.}
 \label{fig:time}
 \end{figure}
+
+
+% =========================================================================
+% Added: measured R-peak prediction accuracy
+% =========================================================================
+\subsection{R-peak prediction accuracy on real ECG}
+\label{sec:rpeak_prediction}
+
+The claim above---that strict-causal ILC is limited by RR prediction rather than by the
+template---is testable directly on the phase estimator, without involving the canceller at all. We
+run it on the chest ECG of sub-070, ses-01 (\rpNrunsAll{} runs, first \rpDur{}~s of each;
+\rpNruns{} kept after dropping runs whose mean RR falls below $500$~ms, which is detector doubling
+rather than genuine tachycardia), and compare the two anchors a canceller can use.
+
+\emph{The one-beat-delay anchor is exact, and available sooner than a beat.} The estimator sets the
+fiducial $t_k$ to the argmax of the raw ECG inside the armed window, and that sample coincides with
+the local $|\mathrm{ECG}|$ maximum in a $\pm 60$~ms neighbourhood on essentially every beat (median
+offset \rpFidOff{}~ms); sub-sample parabolic refinement moves it by only \rpSub{}~ms, so this anchor
+is quantisation-limited, not algorithm-limited. It is also declared quickly: the median detection
+latency is \rpLat{}~ms (p90 \rpLatPninety{}~ms), against a mean beat interval of \rpRR{}~ms. The
+full beat of latency in the buffered mode is therefore not needed to \emph{locate} the R-peak---it
+is needed to measure $T_k$ and to have the template updated.
+
+\emph{The predicted anchor is unbiased but scatters by tens of milliseconds.} At sample $n$ the
+strict-causal canceller believes the R-peak occurred $\phi\hat{T}$ ago, so its predicted R-peak is
+displaced from the true one by $-\mathrm{wrap}(\phi(t_k))\,\hat{T}$, which is the loop's own phase
+error expressed in time. Table~\ref{tab:rpeak} reports it, alongside a re-anchored predictor
+$\hat{t}_k = t_{k-1} + \hat{T}$ that uses the last detected fiducial instead of free-running phase.
+
+\input{tab_rpeak_prediction}
+
+The loop is genuinely locked---the signed error is \rpPllBias{}~ms, not a standing offset---but its
+spread is \rpPllMad{}~ms MAD, with a p90 absolute error of \rpPllPninety{}~ms and only
+\rpPllWTen\% of beats landing within $\pm 10$~ms. That is wide compared with the QRS deflection
+the template must line up with, which is exactly why strict-causal cancellation degrades around the
+R spike while the buffered mode does not.
+
+\emph{Half of that scatter is a design choice, not physics.} Re-anchoring on the last fiducial cuts
+the error from \rpPllMad{} to \rpOlMad{}~ms MAD and raises the $\pm 10$~ms hit rate from
+\rpPllWTen\% to \rpOlWTen\%. Beyond that lies a genuine floor: one-step-ahead RR prediction on
+this subject has SD \rpFloor{}~ms for a random-walk predictor (previous RR), \rpEwma{}~ms for the
+EWMA the loop uses, and \rpMeanPred{}~ms for a constant mean, so RR here is closer to a random walk
+than to a stationary process and the re-anchored predictor is already near what past beat timing
+can deliver. Reducing it further requires information outside the beat train---respiration, since
+most of this variability is RSA.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig_real/fig_rpeak_prediction.pdf}
+\caption{R-peak anchoring on sub-070, ses-01. (a) Distribution of the predicted-R error for the
+free-running PLL phase and for the re-anchored predictor $t_{k-1}+\hat{T}$; the one-beat-delay
+anchor is the vertical line at zero. (b) Cumulative absolute error, with detection latency shown
+for scale: an exact anchor is available within a few tens of milliseconds, far inside either
+prediction error. (c) Per run, PLL and re-anchored error MAD against the random-walk RR prediction
+floor.}
+\label{fig:rpeak}
+\end{figure}
+
+On the record used for Fig.~1 of the manuscript (run-\rpHlRun{}, \rpHlBeats{} scored beats, RR
+\rpHlRR{}$\pm$\rpHlRRsd{}~ms) the same pattern holds: detection latency \rpHlLat{}~ms, PLL
+prediction MAD \rpHlPllMad{}~ms with p90 \rpHlPllPninety{}~ms, re-anchored MAD \rpHlOlMad{}~ms, and
+a one-beat-delay anchor error of zero by construction. The practical reading is that the buffered
+mode should be the default, and that a zero-latency mode is worth building only together with a
+better RR predictor, with its residual timing error budgeted against the width of the feature being
+cancelled.
+
+
+
+% =========================================================================
+% Added: non-causal reference + beat-domain loop analysis
+% =========================================================================
+\subsection{Against a non-causal reference, and what the loop shape says}
+\label{sec:rpeak_bode}
+
+The comparison in \S\ref{sec:rpeak_prediction} used the streaming detector's own fiducial as the
+yardstick, which is itself causal. We now measure against a genuinely non-causal reference: the
+whole ECG is filtered with zero phase (\texttt{filtfilt}, 8--20~Hz), peaks are taken on the
+envelope, and each is refined to the local $|\mathrm{ECG}|$ extremum and then to sub-sample
+resolution by parabolic fit. Of \rbNrunsAll{} runs, \rbNruns{} are kept after requiring that at
+least 95\% of streaming fiducials match a reference peak; the two rejected runs are the ones whose
+detector is doubling.
+
+\emph{The detected fiducial is exact to the grid.} It matches the non-causal peak on
+\rbMatch{}\% of beats with a jitter of \rbFidJitter{}~ms about its own median. Some records carry a
+constant offset of tens of milliseconds, where the armed window closes before the broadest
+deflection; that offset is common to every anchoring scheme---the template absorbs it---so all
+figures below are reported about the median. \emph{The strict-causal predicted R-peak}, measured
+against the same reference, has SD \rbPllSd{}~ms with a p90 absolute error of \rbPllPninety{}~ms,
+against \rbOlSd{}~ms for the re-anchored predictor.
+
+\subsubsection*{Beat-domain error dynamics}
+
+Why the loop should behave that way follows from writing it in the beat domain, where it is linear
+in the timing error. The period estimator is an EWMA of gain $\alpha$, whose one-step prediction
+error is a discrete differentiator behind a lag,
+\begin{equation}
+\frac{(\hat{T}-T)(z)}{T(z)} \;=\; \frac{z^{-1}-1}{1-(1-\alpha)z^{-1}},
+\label{eq:ewma}
+\end{equation}
+so a constant heart rate is tracked exactly and variation is not. The phase corrector removes only
+$K_p$ of the residual timing error per beat, which places a leaky integrator of DC gain $1/K_p$ in
+series. The strict-causal anchor therefore sees
+\begin{equation}
+S(z) \;=\; \underbrace{\frac{1}{1-(1-K_p)z^{-1}}}_{\text{phase corrector}}\;
+\underbrace{\frac{z^{-1}-1}{1-(1-\alpha)z^{-1}}}_{\text{period estimator}},
+\qquad
+|S(\omega)| \;\xrightarrow[\omega\to 0]{}\; \frac{\omega}{\alpha K_p}.
+\label{eq:S}
+\end{equation}
+The low-frequency asymptote is the design statement: the timing error scales with the
+\emph{reciprocal of the product} of the two gains. As shipped both are $0.30$, so slow RR variation
+is amplified by $1/(\alpha K_p) \approx 11$ relative to a loop that corrects fully and does not
+smooth.
+
+\emph{The model is validated, not assumed.} Driving Eq.~\eqref{eq:S} with each record's measured RR
+sequence and taking the SD of the output predicts the observed error to within \rbModelErrPct{}\%
+(median over runs; Fig.~\ref{fig:rpeakbode}(b)). Intervals the arrhythmia supervisor would reject
+are replaced by the running median before filtering, so the model is driven by the same beats the
+measurement is scored on.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig_real/fig_rpeak_bode.pdf}
+\caption{(a) Magnitude of $S$ from Eq.~\eqref{eq:S}: RR variation to predicted-R timing error, in
+cycles per beat, for the loop as built and three alternatives. Grey shading is the measured RR
+disturbance spectrum, pooled over runs and normalised for shape. The as-built loop is $10$--$20$~dB
+above the alternatives exactly where the disturbance lives. (b) Model against measurement, one point
+per run, for the as-built and re-anchored configurations. (c) Predicted error against the
+period-estimator gain $\alpha$, for both phase gains; both gains want to be larger, and there is no
+interior optimum.}
+\label{fig:rpeakbode}
+\end{figure}
+
+\subsubsection*{Where the improvement is}
+
+The measured RR spectrum peaks at \rbRRpeakCpb{} cycles per beat (\rbRRpeakHz{}~Hz), i.e.\ slow
+drift rather than a respiratory line, and it is broadband. That has three consequences, all visible
+in Fig.~\ref{fig:rpeakbode}.
+
+\begin{enumerate}\itemsep2pt
+\item \textbf{Raise $K_p$ to 1}---anchor on the last detected fiducial instead of free-running
+phase. This removes the $1/K_p$ integrator entirely and takes the predicted error from
+\rbModelAsBuilt{} to \rbModelReanch{}~ms. It costs nothing: the fiducial is already available
+\rpLat{}~ms after the beat.
+\item \textbf{Raise $\alpha$ to 1}---predict the next interval as the previous one. Taking
+\rbModelReanch{} to \rbModelLastRR{}~ms. Fig.~\ref{fig:rpeakbode}(c) shows the curve is monotone in
+$\alpha$ with no interior optimum, which is the signature of an RR sequence with little
+beat-to-beat predictable structure: smoothing it only adds lag.
+\item \textbf{Nothing more elaborate helps.} A type-2 $\alpha$-$\beta$ tracker that also carries a
+period rate gives \rbModelAB{}~ms, and a resonator placed at the dominant RR line gives
+\rbModelRes{}~ms---neither beats the deadbeat predictor, because the disturbance is broadband and
+has no line to notch. The $\alpha$-$\beta$ family is also a trap here: at $a_2=0$ its denominator
+factors as $(z-1)(z-(1-a_1))$, a pole on the unit circle for any $a_1$, so a naive gain sweep
+reports its best score at a marginally stable design.
+\end{enumerate}
+
+Taken together, the strict-causal anchor can be improved roughly threefold, from \rbModelAsBuilt{}
+to \rbModelLastRR{}~ms SD, by changing two gains rather than by adding machinery. On the record used
+for Fig.~1 of the manuscript (run-\rbHlRun{}) the same three steps read \rbHlPll{}~ms measured
+(\rbHlModel{}~ms modelled), \rbHlOl{}~ms re-anchored, and \rbHlPrev{}~ms with the deadbeat
+predictor, against a fiducial jitter of \rbHlFidJit{}~ms for the one-beat-delay anchor. The residual
+is then set by the part of the next RR interval that the past genuinely does not determine, and
+closing that gap needs a signal outside the beat train---respiration being the obvious candidate.
+
+
+
+% =========================================================================
+% Added: worked design procedure for the strict-causal predictor
+% =========================================================================
+\subsection{Designing the strict-causal predictor: a worked PI procedure}
+\label{sec:pll_design}
+
+\S\ref{sec:rpeak_bode} showed \emph{that} the loop can be improved and by roughly how much. This
+section is the procedure that gets there without a gain sweep: identify the RR process, let the
+disturbance model fix the loop order, and set the gains from two measured variances. The worked
+numbers are sub-070, ses-01, \pdNruns{} runs.
+
+\subsubsection*{Step 1: state the estimation problem}
+
+At zero latency the canceller needs $t_k$ before it happens. Take the beat instant as position and
+the period as velocity,
+\begin{equation}
+t_k = t_{k-1} + T_k,
+\qquad
+T_k = T_{k-1} + w_k,
+\qquad
+z_k = t_k + v_k,
+\label{eq:statemodel}
+\end{equation}
+with $w_k$ the period process noise (how much the heart rate wanders per beat) and $v_k$ the error
+with which the detector places the fiducial. Everything below follows from the ratio of those two.
+
+\subsubsection*{Step 2: identify the RR process}
+
+Plot the sample autocorrelation of $T_k$ and of its first difference
+(Fig.~\ref{fig:plldesign}(a)). Three outcomes matter:
+
+\begin{itemize}\itemsep2pt
+\item $T_k$ uncorrelated $\Rightarrow$ stationary about a mean; predict with the mean, and no
+integral action is needed.
+\item $\Delta T_k$ uncorrelated $\Rightarrow$ random walk; the previous interval is the optimal
+predictor and one integrator suffices.
+\item $\rho_1(\Delta T) < 0$ $\Rightarrow$ local level (random walk plus white measurement noise);
+exponential smoothing is optimal and $\alpha^{*}=1-\theta$ follows in closed form from
+$\rho_1 = -\theta/(1+\theta^{2})$.
+\end{itemize}
+
+Here the ACF of $T_k$ decays slowly---the series is integrated, not stationary---while
+$\rho_1(\Delta T) = \pdRho{}$, \emph{positive}. That rules out the local-level model and says the
+rate is \emph{smoother} than a random walk: consecutive increments share a sign, as a slow
+respiratory or thermoregulatory drift would produce. Two consequences follow immediately. A loop
+with no integral action cannot track this disturbance at all, and a random-walk process model is
+conservative rather than wrong, so gains derived from it will be slightly hot.
+
+\subsubsection*{Step 3: let the disturbance fix the loop order}
+
+By the internal model principle the loop must contain a model of what it has to reject. An
+integrated rate needs one integrator in the period path; that integrator is exactly the ``I'' of a
+PI phase-locked loop. Writing the loop in the beat domain,
+\begin{equation}
+\begin{aligned}
+\hat{t}_k^{-} &= \hat{t}_{k-1} + \hat{T}_{k-1}, &\qquad
+r_k &= z_k - \hat{t}_k^{-},\\
+\hat{t}_k &= \hat{t}_k^{-} + a\,r_k, &\qquad
+\hat{T}_k &= \hat{T}_{k-1} + b\,r_k \;(+\,c\,(r_k-r_{k-1})),
+\end{aligned}
+\label{eq:piloop}
+\end{equation}
+where $a$ is the proportional (phase) gain, $b$ the integral (period) gain and $c$ an optional
+derivative term. Equation~\eqref{eq:piloop} is simultaneously a PI PLL and an $\alpha$--$\beta$
+tracker; the published anchor is $\hat{t}_k^{-}$ and the quantity to minimise is
+$e_k = \hat{t}_k^{-} - t_k$. The shipped estimator is \emph{not} of this form: it pulls the phase
+proportionally and estimates the period by a separate EWMA of measured intervals, which is why it
+behaves like a loop with no integrator in the right place.
+
+\subsubsection*{Step 4: set the gains from the two variances}
+
+Estimate the process noise as the beat-to-beat interval increment, $\sigma_w = \mathrm{SD}(\Delta
+T) = \pdSigmaW{}$~ms, and the measurement noise as the fiducial jitter measured in
+\S\ref{sec:rpeak_bode}, $\sigma_v = \pdSigmaV{}$~ms. Their ratio is the tracking index
+\begin{equation}
+\Lambda = \frac{\sigma_w T^{2}}{\sigma_v} = \pdLambda{} \quad (T = 1 \text{ beat}),
+\label{eq:lambda}
+\end{equation}
+and the steady-state gains follow in closed form from Kalata's steady-state solution for the tracking index:
+\begin{equation}
+r = \tfrac{1}{4}\bigl(4+\Lambda-\sqrt{8\Lambda+\Lambda^{2}}\bigr),
+\qquad
+a = 1-r^{2},
+\qquad
+b = 2(2-a)-4\sqrt{1-a},
+\label{eq:kalata}
+\end{equation}
+giving $a=\pdKalA{}$, $b=\pdKalB{}$. Driving Eq.~\eqref{eq:piloop} with the measured beat trains at
+those gains yields \pdKalSd{}~ms, against \pdOptSd{}~ms for the best point of an exhaustive
+$(a,b)$ grid at $(\pdOptA{},\pdOptB{})$: the closed form lands within $0.4$~ms of a search, from two
+variances and no tuning. The interpretation of $\Lambda = \pdLambda{}$ is that the fiducial is far
+quieter than the heart rate is variable, so the loop should be fast and trust each measurement
+almost completely---which is why $a$ comes out near unity.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig_real/fig_pll_design.pdf}
+\caption{(a) Identification. $T_k$ is integrated (slowly decaying ACF) and $\rho_1(\Delta T)=\pdRho{}$
+is positive, so the rate is smoother than a random walk; shading is the $95\%$ band for zero. (b)
+Design surface: predicted R-peak error SD over the PI gains, with the stability boundary $b=4-2a$,
+the shipped operating point, the gains from Eq.~\eqref{eq:kalata}, and the grid optimum. (c) Error
+against the integral gain for two proportional gains, with the shipped structure and the
+proportional-only limit marked.}
+\label{fig:plldesign}
+\end{figure}
+
+\subsubsection*{Step 5: check margin, then validate}
+
+The $\alpha$--$\beta$ stability condition is $0<a<2$, $0<b<4-2a$, drawn in
+Fig.~\ref{fig:plldesign}(b). The optimum sits in a long shallow valley with a cliff just beyond it,
+so the sensible choice is to back off along the valley rather than sit at the minimum: $(1.0,1.2)$
+costs about $0.2$~ms against $(\pdOptA{},\pdOptB{})$ and buys real margin. Validation against the
+shipped loop is then Fig.~\ref{fig:plldesign}(c): \pdBuilt{}~ms as built, \pdOptSd{}~ms designed.
+
+\subsubsection*{What the exercise actually shows}
+
+\emph{It is the integral term that matters, not the proportional one.} With the period estimate
+frozen, a proportional-only loop is stuck at \pdPonly{}~ms however its gain is chosen---barely
+better than the shipped \pdBuilt{}~ms---because no amount of phase pulling lets a loop follow a rate
+it is not tracking. Adding integral action takes it to \pdOptSd{}~ms.
+
+\emph{Derivative action buys nothing here.} The best PID over the same grid sits at
+$c=\pdPidC{}$ with \pdPidSd{}~ms, indistinguishable from PI. The positive $\rho_1(\Delta T)$ says
+there \emph{is} a little exploitable trend, but not enough to survive differentiating a signal whose
+increments are only weakly correlated.
+
+\emph{Two caveats before adopting the numbers.} The gains were identified on the same records they
+were scored on, so \pdOptSd{}~ms is a design estimate rather than a held-out prediction; the
+structural conclusions---integral action essential, derivative useless, $a$ near unity---are what
+should carry over. And $\sigma_w$ varies by a factor of two across runs, so $\Lambda$ and hence the
+gains are properly a running estimate, from an online $\mathrm{SD}(\Delta T)$ and fiducial jitter,
+rather than constants. Ectopic beats are outside the Gaussian model entirely: the arrhythmia
+supervisor still has to freeze the update on them, and no choice of $(a,b)$ substitutes for that.
+
 
 \end{document}

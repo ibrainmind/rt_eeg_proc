@@ -1,0 +1,118 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage[colorlinks=true,linkcolor=black,urlcolor=blue]{hyperref}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{verbatim}
+
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.6em}{}
+
+\title{\vspace{-2em}\bfseries What phase warping buys the Figure-1 canceller\\
+\large non-causal and one-beat-delay, with and without warp}
+\author{Working note for the CFA ear-EEG paper}
+\date{\today}
+
+\begin{document}
+\maketitle
+\vspace{-1.5em}
+
+\noindent
+\textbf{What was done.} Figure~1 of the paper is produced by
+\texttt{ekg\_ilc\_rt.ilc\_clean(mode="noncausal")}, whose template is indexed by
+\emph{fixed lag} from the R-peak. That function now takes a warp exponent $\gamma$: the
+template bin for a sample at offset $p$ from beat $k$ is
+$\mathrm{ra} + \mathrm{round}(p/w_k)$ with $w_k = (T_k/\bar T)^{\gamma}$, so $\gamma=0$ is the
+original code path---verified bit-identical---and $\gamma=1$ stretches the template to each beat,
+i.e.\ normalized cardiac phase. All four combinations of
+$\{\text{non-causal},\ \text{one-beat delay}\}\times\{\gamma=0,\ \gamma=1\}$ were run, plus
+$\gamma=1/2$.
+
+\textbf{The short answer.} It depends entirely on whether the artifact is time-locked to the
+R-peak or rides on cardiac phase, and nothing else. On synthetic data where that is controlled,
+warping costs up to 2.7~dB in the first regime and buys up to 1.9~dB in the second,
+in both cases growing with heart-rate variability. On the real recordings the sign is not uniform,
+and it is predictable: the three records whose R-locked energy sits in the QRS lobe lose a little
+from warping, while the one record whose energy sits late gains clearly. Figure~1 is drawn on a
+lobe-dominated record, so it loses nothing by omitting the warp. One beat of latency costs about
+2.0~dB against the batch average, and that cost is essentially independent of $\gamma$: the
+two design choices are separable.
+
+\section{Why the comparison needs care on real data}
+
+There is no ground truth on the real recordings, and the two obvious ground-truth-free metrics are
+both traps at $\gamma=0$.
+
+Subtracting a non-causal template from the very beats that built it drives the R-triggered average
+of the residual to \emph{exactly} zero, because the template \emph{is} that average. Scored that
+way the fixed-lag arm reads $-200$~dB and the comparison is meaningless. Splitting the beats in
+half---template from one half, applied to the other---fixes the estimator but not the metric: the
+R-triggered average of the residual over \emph{all} beats is still identically zero, since the two
+half-templates average back to the full one.
+
+We therefore (i) hold out properly, partitioning samples by their nearest beat so that every sample
+is cleaned by a template that excludes its own beat, and (ii) score by variance reduction inside
+the beat window rather than by R-triggered energy. Variance reduction is coordinate-free, so it
+privileges neither $\gamma$, and both arms have the same number of template bins, so the comparison
+is not confounded by degrees of freedom either. The one-beat-delay arm needs no split: it subtracts
+before it updates, so each bin is already scored against beats it has not seen.
+
+\section{Synthetic, with ground truth}
+
+The shipped generator \texttt{gen\_eeg} places a \emph{fixed-shape} PQRST at every beat, so its
+artifact is strictly time-locked and $\gamma=1$ cannot help by construction. Reporting only that
+would be rigging the answer, so we also run a stretched variant in which each beat's waveform is
+scaled in time by $T_k/\bar T$, where $\gamma=1$ is correct by construction. The two bracket
+reality.
+
+\input{tab_phase_swap_synth}
+
+\section{Real recordings}
+
+\input{tab_phase_swap_real}
+
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\linewidth]{fig_real/fig_phase_swap.pdf}
+\caption{(a) Synthetic: advantage of $\gamma=1$ over $\gamma=0$ against RR variability, for both
+artifact regimes and both cancellation modes. The sign is set by the regime; the magnitude grows
+with variability. (b) Real recordings: the same difference, held out, per record and band. The
+lobe-dominated records lose slightly; the late-dominated record (sub-118) gains in its late band.}
+\end{figure}
+
+\section{Reading}
+
+\begin{itemize}[leftmargin=1.4em,itemsep=0.25em]
+\item \textbf{$\gamma$ is not a free win.} Warping a template that was already aligned actively
+hurts, and the damage grows with the very RR variability that motivated warping in the first place.
+\item \textbf{The sign is predictable from where the artifact sits.} Stretching by $T_k/\bar T$
+displaces bin $o$ by $(o-\mathrm{ra})(T_k/\bar T - 1)$ samples: essentially zero at the R-peak,
+large late in the cycle. So warping cannot help a sharp time-locked QRS deflection and can only
+blur it, while it realigns a genuinely phase-locked late component. Empirically the late/lobe
+energy ratio predicts the sign, and that ratio is measurable \emph{before} choosing $\gamma$.
+\item \textbf{Most of these records are lobe-dominated, one is not.} Three records lose $0.00$ to
+$0.19$~dB; \texttt{sub-118/run-02}, whose late deflection is over three times its lobe deflection,
+gains $+0.59$~dB non-causal and $+0.49$~dB buffered in its late window. Any corpus-level statement
+about $\gamma$ is therefore a statement about the mix of records in the corpus.
+\item \textbf{Latency and coordinate are separable.} The one-beat-delay penalty is roughly constant
+across $\gamma$, so the streaming mode can be chosen independently of the coordinate.
+\item \textbf{Figure 1 is fine as it stands.} It is drawn at $\gamma=0$ on a lobe-dominated record,
+where $\gamma=0$ is the right choice; the warp would change it by $-0.19$~dB. If the warp enters
+the paper it should be as a formulation containing fixed lag as a special case, not as a
+performance claim.
+\end{itemize}
+
+\section*{Reproducing}
+
+\begin{verbatim}
+python src/phase_swap_compare.py --out outputs/phase_swap.json
+python src/phase_swap_report.py
+\end{verbatim}
+
+\noindent The plain-text results are in \texttt{paper/phase\_swap.txt}.
+
+\end{document}

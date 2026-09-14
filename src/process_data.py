@@ -1163,6 +1163,27 @@ def run_kalman_predictor_comparison(
     plt.close(fig)
 
 
+def _legend_under_traces(ax, ncol: int, pad: float = 0.03) -> None:
+    """Park the legend in an empty strip added below the traces.
+
+    The traces span the full width of these panels, so the only place a legend
+    cannot cover a curve is a band reserved just above the x-axis. The band is
+    measured from the rendered legend so the traces are compressed no more than
+    the legend actually needs.
+    """
+    leg = ax.legend(loc="lower center", ncol=ncol, framealpha=0.85,
+                    borderaxespad=0.25, columnspacing=1.2, handletextpad=0.5)
+    ax.figure.canvas.draw()
+    height = leg.get_window_extent().transformed(ax.transAxes.inverted()).height
+    band = min(0.5, height + pad)
+    lo, hi = ax.get_ylim()
+    ticks = ax.get_yticks()
+    ax.set_ylim(lo - band * (hi - lo) / (1.0 - band), hi)
+    # Keep the tick labels the traces had before the band was added.
+    new_lo, new_hi = ax.get_ylim()
+    ax.set_yticks([tk for tk in ticks if new_lo <= tk <= new_hi])
+
+
 def run_real_cancellation_figure(
     dataset_root: Path,
     subject: str,
@@ -1221,7 +1242,7 @@ def run_real_cancellation_figure(
 
     fig, axes = plt.subplots(2, 1, figsize=(7.2, 4.4), sharex=True,
                              gridspec_kw={"height_ratios": [1, 2]})
-    axes[0].plot(t, ecg_view, lw=0.9, color="C2", label=ecg_name)
+    axes[0].plot(t, ecg_view, lw=0.9, color="C2", label="ECG")
     if buffered_times.size:
         axes[0].scatter(buffered_times, ecg[fid_idx], s=34, color="C0", marker="o",
                         zorder=4, label="buffered R peak")
@@ -1231,7 +1252,6 @@ def run_real_cancellation_figure(
                         label="predicted R peak")
     axes[0].set_ylabel("V")
     axes[0].set_title("ECG/EKG: buffered and predicted R-peaks")
-    axes[0].legend(loc="upper right")
     axes[0].grid(alpha=0.25)
 
     axes[1].plot(t, eeg[i0:i1], lw=0.8, color="C3", alpha=0.75, label="original")
@@ -1240,7 +1260,6 @@ def run_real_cancellation_figure(
     axes[1].set_ylabel("V")
     axes[1].set_title(f"EEG channel: {eeg_name}")
     axes[1].set_xlabel("Time (s)")
-    axes[1].legend(loc="upper right")
     axes[1].grid(alpha=0.25)
 
     for ax in axes:
@@ -1250,6 +1269,8 @@ def run_real_cancellation_figure(
     fig.suptitle("Buffered and Strict Real-Time CFA Cancellation (SeizeIT2 ds005873)",
                  fontsize=12, y=0.98)
     plt.tight_layout(rect=[0, 0, 1, 0.975])
+    _legend_under_traces(axes[0], ncol=3)
+    _legend_under_traces(axes[1], ncol=3)
     if out_path is not None:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         plt.savefig(out_path, dpi=150)

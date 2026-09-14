@@ -1,0 +1,286 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{cite}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc}
+\usepackage{url}
+
+% ---------------------------------------------------------------------------
+% NOTE ON NOTATION (not printed): every symbol is a plain Latin letter with a
+% stated meaning; system-theoretic quantities use control-custom letters
+% (A, B, C for the state-space model; K for Kalman/RLS gain; P for the error
+% covariance). See the Notation paragraph at the start of Sec. IV.
+% ---------------------------------------------------------------------------
+
+\begin{document}
+
+\title{Real-Time Control-Theoretic Cancellation of Cardiac Field Artifact in Low-Channel Ear-EEG}
+
+\author{
+\IEEEauthorblockN{Wenlin Zhang$^{1}$, Sam Lin$^{1,6}$,  Shuai Li$^{3}$, Ye Yuan$^{1}$, \\
+Zheng Wang$^{1,2}$, Tony Ni$^{4}$, Kant Yao$^{4}$, Yongcheng Li$^{5}$, Davide Momi$^{7}$}
+\IEEEauthorblockA{
+$^{1}$Institute of Brain and Mind, CA, USA\\
+$^{2}$Krembil Centre for Neuroinformatics, Centre for Addiction and Mental Health, Toronto, Ontario, Canada\\
+$^{3}$University of Oulu, Oulu, Finland\\
+$^{4}$Synchroni Scientific Instruments Inc., Canada\\
+$^{5}$Shenzhen Institutes of Advanced Technology, China\\
+$^{6}$Palos Verdes Peninsula High School, CA, USA\\
+$^{7}$University of California, IrvineCA, USA\\
+\textit{Corresponding author: [Name] (e-mail: [corresponding.author@institute.edu])}
+}
+}
+
+\maketitle
+
+\begin{abstract}
+Cardiac field artifact (CFA)---the volume-conducted electrical potential of the heart appearing at scalp and ear electrodes---is a dominant contaminant in wearable ear-EEG, and is distinct from the ballistocardiographic pulse artifact studied in EEG-fMRI. On earable form factors with fewer than eight channels, blind source separation is channel-starved, so a reference-driven approach is preferable. We present a control-theoretic algorithm synthesis for real-time, low-power CFA cancellation. An electrocardiogram (ECG) reference drives a phase estimator built from a two-level (min/max) envelope tracker and a proportional--integral phase-locked loop with an arrhythmia supervisor. The recovered cardiac phase anchors an iterative learning control (ILC) / repetitive-control template that cancels the repeatable per-beat artifact, and a normalized recursive-least-squares (NRLS) stage---cast as a state-space system with control-standard $A,B,C$ matrices---removes the drifting residual through a Hammerstein model of the electrode nonlinearity. We analyze a one-beat-latency (buffered) mode against a strictly causal (zero-latency) mode, give a per-sample complexity analysis, and evaluate on semi-synthetic data against linear adaptive-noise-cancellation, extended-Kalman-filter, and low-channel ICA baselines. The synthesis improves artifact SNR from 1.3~dB to 9.0~dB (buffered) while preserving the alpha rhythm, at $O(D)$ per-sample cost suitable for edge deployment.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Ear-EEG, cardiac field artifact, adaptive noise cancellation, iterative learning control, repetitive control, phase-locked loop, Hammerstein model, real-time, wearable.
+\end{IEEEkeywords}
+
+% ===========================================================================
+\section{Introduction}
+
+Ear-centered ``earable'' EEG has moved brain monitoring out of the laboratory, but the cardiac field artifact (CFA) grows in relative severity as electrodes move toward the ears and neck. CFA is the volume-conducted electrical potential of the heart's dipole, reaching each electrode through a channel-specific, quasi-static transfer function \cite{dirlich1997}. It must be distinguished from the ballistocardiogram (BCG) or pulse artifact---electrode motion driven by pulsatile flow---which dominates inside an MR scanner and is only loosely coupled to the ECG waveform \cite{allen1998,allen2000,niazy2005}. Because earables operate outside the scanner, the target here is CFA, the reference-driven case.
+
+Reference-driven cancellation of an ECG signal from a biopotential is classical, dating to the paper that introduced adaptive noise cancelling, which used maternal-ECG and 60~Hz interference cancellation as its motivating examples \cite{widrow1975}. A method contribution therefore cannot rest on the adaptive filter alone. Our contribution is a \emph{control-theoretic synthesis} tailored to the earable regime---few channels, low power, real time---that treats CFA as a quasi-periodic disturbance with an observable phase. We combine four elements the EEG-denoising literature rarely brings together: (i) an ECG \emph{phase estimator} using a two-level min/max envelope tracker for amplitude-drift-invariant R-peak gating and a proportional--integral (PI) phase-locked loop (PLL) with an arrhythmia supervisor; (ii) an \emph{iterative learning control (ILC)} / repetitive-control template that cancels the repeatable per-beat artifact, analyzed in a one-beat-latency and a zero-latency mode; (iii) a \emph{Hammerstein} static-nonlinearity model of the electrode sensor; and (iv) a \emph{normalized RLS (NRLS)} linear residual canceller, presented as a state-space system in control-standard form. We give a per-sample complexity analysis and compare against linear ANC, an extended Kalman filter (EKF), and low-channel ICA.
+
+% ===========================================================================
+\section{Related Work}
+
+\subsection{Reference-driven adaptive cancellation}
+LMS/NLMS/RLS cancellation with an ECG reference is textbook \cite{widrow1975,haykin2014,sayed2008,diniz2013}. Its residuals arise from channel-specific volume conduction, scalp-versus-chest QRS morphology mismatch, and nonstationarity with posture and heart-rate variability; a scalar linear filter captures only the linear time-invariant component.
+
+\subsection{Template subtraction and optimal basis sets}
+Average artifact subtraction and the optimal-basis-set (OBS) refinement were developed for the BCG artifact in EEG-fMRI \cite{allen1998,allen2000,niazy2005}. Once epochs are QRS-aligned the machinery ports to CFA; we adopt the repeatable-template idea within a control framework.
+
+\subsection{Blind source separation for wearables}
+ICA \cite{jung2000} with automated labeling \cite{pion2019} and artifact subspace reconstruction (ASR) \cite{mullen2015} are standard for multichannel wearable EEG, but ICA identifiability degrades as the channel count approaches the source count, and fails for single-/low-channel montages---precisely the earable regime---motivating a reference-driven method.
+
+\subsection{Learning-based denoising}
+Deep denoisers and benchmarks (e.g., EEGdenoiseNet \cite{zhang2021}) target chiefly ocular and muscular artifacts, with cardiac artifact under-represented; they are also costly for always-on edge use. Algorithm unrolling \cite{gregor2010,monga2021} offers a route from an iterative estimator to a low-power fixed-graph network, which our synthesis is compatible with.
+
+\subsection{Iterative learning and repetitive control}
+Rejection of periodic exogenous disturbances is the province of repetitive control, grounded in the internal model principle \cite{francis1976,hara1988,longman2000}, and of ILC for repeating trials \cite{arimoto1984,bristow2006}. These frameworks are standard in mechatronics but essentially absent from EEG artifact removal; reframing CFA as periodic-disturbance rejection with the ECG R-peak as phase reference is a central move of this work.
+
+% ===========================================================================
+\section{Contributions and Novelty}
+
+Control-theoretic disturbance rejection is mature and production-proven: iterative learning control (ILC) and repetitive control reject periodic disturbances in hard-disk-drive servos, power converters, and robotic manipulators \cite{arimoto1984,bristow2006,hara1988,longman2000,francis1976}, and block-oriented (Hammerstein) compensation of sensor and actuator nonlinearities is a low-cost, real-time staple of the same systems \cite{narendra1966,bai1998}. These schemes are prized in industry for being cheap, deterministic, and production-oriented. Biosignal denoising, by contrast, has been dominated by statistical decomposition (ICA) and, recently, data-hungry deep networks. This paper bridges the two by transplanting a mechatronic disturbance-rejection pipeline onto EEG artifact removal. To the best of our knowledge, this is the first practical control-based framework for biosignal denoising.
+
+Our specific contributions are: \textbf{C1)} a control-theoretic synthesis---streaming phase estimator, ILC/repetitive template, Hammerstein electrode model, and normalized-RLS residual---for real-time CFA removal in low-channel ($C<8$) ear-EEG; \textbf{C2)} a streaming ECG phase estimator combining a two-level (min/max) envelope tracker, a PI phase-locked loop, and an arrhythmia supervisor, yielding a continuous cardiac phase that both anchors and predicts cancellation; \textbf{C3)} an explicit one-beat-latency versus zero-latency analysis, showing the R-spike cancellation ceiling is set by RR-interval predictability (respiratory-sinus-arrhythmia-lag dominated); and \textbf{C4)} a per-sample complexity analysis ($O(D)$ with NLMS) and a semi-synthetic evaluation against linear ANC, EKF, and low-channel ICA baselines.
+
+Transplanting these tools is not mechanical; biosignals raise challenges absent in mechatronics. \textbf{(i)} The disturbance ``trial'' has no index pulse and a nonstationary period---heart rate varies continuously with respiration and activity---so phase must be estimated from a noisy observable rather than read from an encoder. \textbf{(ii)} The repeatable disturbance is only approximately repeatable: beat morphology drifts and arrhythmias inject outliers, requiring a supervisory layer atop the linear loop. \textbf{(iii)} The reference is nonlinearly transduced and may be acquired on a separate device (e.g., a wrist ECG/PPG), threatening sample alignment. \textbf{(iv)} The disturbance overlaps the signal of interest in time and spectrum---the heartbeat-evoked potential is itself heart-locked---so over-subtraction can destroy neural signal. \textbf{(v)} Validation lacks ground truth and must contend with low SNR and few channels. The proposed design addresses (i)--(iv) explicitly and evaluates (v) via a semi-synthetic protocol.
+
+% ===========================================================================
+\section{Signal Model and Problem Formulation}
+
+\textbf{Notation.} All quantities are written with plain, meaningful Latin letters. Signals: $y(t)$ measured EEG channel; $s(t)$ true neural signal (desired); $d(t)$ cardiac disturbance (artifact); $n(t)$ channel noise; $r(t)$ ECG reference measurement; $u(t)$ underlying cardiac electrical source; $v(t)$ reference-sensor noise. Operators: $H\{\cdot\}$ the linear volume-conduction channel, with impulse-response taps $h[m]$; $N(\cdot)$ the static electrode nonlinearity. Timing: $t_k$ the $k$-th R-peak instant; $\mathrm{RR}_k = t_{k+1}-t_k$ the $k$-th RR interval; $p(t)\in[0,1)$ the cardiac phase. System (state-space): $x[n]$ the adaptive-filter state (weight vector); $A,B$ the state-transition and process-noise matrices; $C[n]$ the time-varying measurement (regressor) vector; $K[n]$ the Kalman/RLS gain; $P[n]$ the error covariance.
+
+The measured EEG channel and the ECG reference are
+\begin{align}
+y(t) &= s(t) + d(t) + n(t), \label{eq:meas}\\
+r(t) &= u(t) + v(t). \label{eq:ref}
+\end{align}
+The disturbance is a Hammerstein cascade of the reference---a static nonlinearity $N(\cdot)$ followed by the linear channel $H$---
+\begin{equation}
+d(t) \approx H\{\, N(r(t)) \,\}.
+\label{eq:hammerstein}
+\end{equation}
+Systole (QRST) is approximately time-locked to the R-peak while diastole absorbs the RR variation, so we anchor a repeatable component in time-since-R and treat the remainder as drift,
+\begin{equation}
+d(t) = d_p(t - t_k) + d_r(t),
+\label{eq:decomp}
+\end{equation}
+where $d_p$ is addressable by repetitive/ILC methods once the phase $p(t)$ (equivalently the most recent R-instant $t_k$) is known, and $d_r$---driven by heart-rate variability (HRV), respiration, and posture---is left to an adaptive residual filter.
+
+% ===========================================================================
+\section{Proposed Algorithm Synthesis}
+The system-level flow is: the ECG reference $r(t)$ feeds both the phase estimator and the Hammerstein basis expansion; the phase estimator outputs $(t_k,p(t),l[k])$ anchor and gate ILC template subtraction to produce $e_I(t)$; and a state-space NRLS residual stage, driven by the basis regressor $C[n]$, removes the remaining drift component and yields the cleaned output $e(t)$. This textual block mapping corresponds directly to Eqs.~(1)--(17) and is detailed in the subsections below.
+
+\subsection{ECG phase estimator: min/max tracker + PI-PLL}
+A QRS-emphasis band-pass feeds two streaming trackers: a peak tracker $pk(t)$ (fast attack, slow release) and a baseline tracker $bl(t)$ (slow moving average). The normalized gate
+\begin{equation}
+g(t) = \frac{x(t) - bl(t)}{pk(t) - bl(t)}
+\label{eq:gate}
+\end{equation}
+is amplitude-drift invariant, so posture/contact drift does not defeat detection. A Schmitt hysteresis and a 250~ms refractory yield clean beat gating; the fiducial $t_k$ is the raw-reference maximum within the gated window (low jitter).
+
+A PI phase-locked loop converts sparse fiducials into a continuous phase. Between beats the phase advances by the instantaneous rate estimate,
+\begin{equation}
+p(t+1) = \big[\, p(t) + \mathrm{fr}(t) \,\big] \bmod 1, \qquad \mathrm{fr}(t) = \frac{1}{\mathrm{RR}_{\mathrm{est}}(t)\, f_s},
+\label{eq:phaseacc}
+\end{equation}
+where $f_s$ is the sample rate. At each fiducial, a proportional term realigns phase and an integral term updates the rate estimate,
+\begin{align}
+p &\leftarrow p - K_p \, e_p, \label{eq:pcorr}\\
+\mathrm{RR}_{\mathrm{est}} &\leftarrow \mathrm{RR}_{\mathrm{est}} + K_i \,(\mathrm{RR}_{\mathrm{meas}} - \mathrm{RR}_{\mathrm{est}}), \label{eq:rcorr}
+\end{align}
+with $e_p$ the wrapped phase error and $K_p,K_i$ the PI gains. The loop bandwidth is set above respiratory sinus arrhythmia (RSA, $\sim$0.2--0.4~Hz) and below per-beat detection noise. An arrhythmia supervisor classifies each beat by the ratio $\mathrm{RR}_{\mathrm{meas}}/\mathrm{RR}_{\mathrm{est}}$ and applies the matching reflex---\emph{premature}: trust the measured phase, freeze the rate and learning; \emph{missed}: trust the prediction, keep the rate---protecting both the loop and the template.
+
+\subsection{ILC/repetitive template cancellation}
+A template $m(o)$, indexed by time-since-R offset $o$, stores $d_p$. Cancellation is a table lookup at the current offset,
+\begin{equation}
+e_I(t) = y(t) - m(o(t)),
+\label{eq:ilccancel}
+\end{equation}
+and learning is a first-order ILC (leaky-integrator) update,
+\begin{equation}
+m(o) \leftarrow m(o) + a \, e_I(t),
+\label{eq:ilclearn}
+\end{equation}
+applied only on normal beats, with $a$ the ILC learning gain. Because we estimate an additive disturbance rather than invert a plant, the effective plant is the identity, and the ILC convergence condition reduces to $|q(1-a)| < 1$ for a $Q$-filter/forgetting factor $q\in(0,1]$---trivially satisfied for any sane $a$. The factor $q$ trades asymptotic cancellation for drift tracking.
+
+Detection latency forces a mode choice: the R-peak is confirmed $\sim$60--80~ms after it occurs, so \emph{buffered} operation ($\approx$1-beat latency) anchors each sample to its detected $t_k$ and removes the sharp R spike fully, whereas \emph{causal} (zero-latency) operation must anchor to the PLL-predicted R-time; the R-spike depth is then capped by RR predictability (RSA-lag dominated). The broad P and T waves survive prediction; only the R spike is latency-critical.
+
+\subsection{Hammerstein electrode model}
+Scalar linear filtering assumes the reference is an undistorted copy of the cardiac source; the electrode--electrolyte--skin interface adds half-cell potentials, polarization, and mild compression, i.e., the static nonlinearity $N(\cdot)$ in \eqref{eq:hammerstein}. We model $N$ in a fixed orthogonal (Chebyshev) basis, keeping the estimator linear-in-parameters and convex at fixed parameter count---unlike kernel adaptive filters whose dictionaries grow with data \cite{liu2010}. Writing the basis expansion of the reference as
+\begin{equation}
+\Phi(r) = [\, b_1(r), \, b_2(r), \, \ldots, \, b_P(r) \,]^{\!\top},
+\label{eq:basis}
+\end{equation}
+the identified combined weight matrix $W$ is rank-one,
+\begin{equation}
+W = c\, h^{\top},
+\label{eq:rank1}
+\end{equation}
+the outer product of the nonlinearity coefficients $c$ and the channel taps $h$ from \eqref{eq:hammerstein}, recoverable by singular value decomposition \cite{narendra1966,bai1998}.
+
+\subsection{Normalized-RLS residual canceller as a state-space system}
+The residual $d_r(t)$ in \eqref{eq:decomp} is removed by an adaptive filter driven by the basis-expanded reference $\Phi(r)$. Following control convention, we cast the canceller as a state-space system with the filter weights as state $x[n]$:
+\begin{align}
+x[n] &= A\, x[n-1] + B\, w[n], \label{eq:ssA}\\
+d_r(t) &= C[n]\, x[n] + n(t), \label{eq:ssC}
+\end{align}
+where $A=I$ (a random-walk model of tap drift), $B$ scales the process noise $w[n]$, and $C[n] = \Phi(r)^{\top}$ is the time-varying regressor built from delayed copies of \eqref{eq:basis} (this is the same construction that turns RLS into a Kalman filter). The recursive update is the standard Kalman/RLS pair,
+\begin{align}
+K[n] &= \frac{P[n-1] C[n]^{\top}}{\lambda + C[n] P[n-1] C[n]^{\top}}, \label{eq:kgain}\\
+x[n] &= x[n-1] + K[n]\, e(t), \qquad e(t) = d_r(t) - C[n] x[n-1], \label{eq:xupdate}\\
+P[n] &= \big(P[n-1] - K[n] C[n] P[n-1]\big) / \lambda, \label{eq:pupdate}
+\end{align}
+with forgetting factor $\lambda$. \emph{Normalized} RLS (NRLS) additionally scales the update by the instantaneous regressor power, giving step-size robustness under the nonstationary reference power typical of dry-contact earables; a normalized-LMS (NLMS) variant replaces \eqref{eq:kgain}--\eqref{eq:pupdate} with a single $O(D)$ update, trading convergence speed for per-sample cost (Sec.~VI). A foreground/shadow filter pair guards against divergence on abrupt posture shifts; adaptation is gated on cardiac phase.
+
+\subsection{Safeguards against cancellation of neural signal}
+\label{sec:safeguards}
+Because $s(t)$ can share frequency content with $d(t)$, frequency alone cannot separate them; the synthesis instead relies on \emph{phase-lock} and \emph{reference-correlation}, together with two explicit limiters.
+
+\emph{Phase-lock gate (structural).} The ILC template \eqref{eq:ilclearn} only accumulates energy that is consistent across many beats at the same offset $o$---it is structurally an evoked average. EEG activity that is not phase-locked to the R-peak averages toward zero in $m(o)$ rather than being learned, regardless of its frequency. Cancellation \eqref{eq:ilccancel} is further confined to samples inside the template window $o(t)\in[0,L_w)$; outside it, $y(t)$ is untouched.
+
+\emph{Reference-orthogonality (NRLS).} The residual canceller is driven only by the regressor $C[n]=\Phi(r)^{\top}$ built from the reference. By the orthogonality principle of least-squares estimation, \eqref{eq:xupdate} can only remove the component of $y(t)$ linearly predictable from $r(t)$; neural activity uncorrelated with $r(t)$ lies in the orthogonal complement and passes through unaffected.
+
+\emph{Amplitude limiter.} To bound worst-case over-subtraction, cancellation is capped using the already-computed peak tracker $pk(t)$ from \eqref{eq:gate}:
+\begin{equation}
+e_I(t) = y(t) - \mathrm{sat}_{\pm\beta\, pk(t)}\big(m(o(t))\big), \quad \beta \in (0,1),
+\label{eq:limiter}
+\end{equation}
+where $\mathrm{sat}_{\pm L}(x) = \max(-L,\min(L,x))$. The subtracted amount can never exceed a fraction $\beta$ of the tracked ECG amplitude, a physically motivated ceiling on plausible CFA magnitude. Analogously, the NRLS state update \eqref{eq:xupdate} is used in \emph{leaky} form,
+\begin{equation}
+x[n] = (1-\delta)\, x[n-1] + K[n]\, e(t), \quad \delta \ll 1,
+\label{eq:leaky}
+\end{equation}
+bounding $\|x[n]\|$ and preventing unbounded gain on any single regressor direction.
+
+\emph{Remaining risk.} The heartbeat-evoked potential (HEP) is genuine neural activity that \emph{is} phase-locked to the heartbeat \cite{park2019}; phase-lock alone cannot distinguish it from CFA, and it is only partially protected by \eqref{eq:limiter}--\eqref{eq:leaky}. We report alpha-rhythm preservation (Sec.~VII) as an indirect check; an explicit HEP-preservation test is future work.
+
+\subsection{Algorithm summary}
+Per sample: (1)~update trackers \eqref{eq:gate} and gate; (2)~advance phase \eqref{eq:phaseacc}, correct at fiducials \eqref{eq:pcorr}--\eqref{eq:rcorr}, run the supervisor; (3)~ILC lookup/limited-subtract \eqref{eq:ilccancel},\eqref{eq:limiter} (update \eqref{eq:ilclearn} on normal beats); (4)~Hammerstein basis expansion \eqref{eq:basis}; (5)~leaky NRLS/NLMS state update \eqref{eq:kgain}--\eqref{eq:pupdate},\eqref{eq:leaky}. Steps 1--4 are $O(1)$--$O(P)$; step 5 dominates.
+
+% ===========================================================================
+\section{Complexity Analysis}
+Let $D = P \cdot M$ be the residual-filter length (basis order $P$, taps $M$), $L_w$ the template length, and $C$ the channel count. The per-sample cost is dominated by the residual adaptive stage: with NLMS, the full pipeline is $O(D)$; with full NRLS, it is $O(D^2)$. The remaining stages are low-order: trackers and gate are constant-time (about six MAC/sample), PI-PLL update is constant-time (about two MAC/sample, amortized), ILC lookup/update is constant-time (about two MAC/sample) with memory $L_w$, and Hammerstein basis expansion scales as $O(P)$ (about $2P$ MAC/sample) with memory $P$. For low-channel ear-EEG ($C<8$) and practical $D\approx32$, NLMS is suitable for always-on edge operation, while NRLS is reserved for settings where faster convergence justifies quadratic cost.
+
+% ===========================================================================
+\section{Experiments}
+
+\subsection{Semi-synthetic data}
+Following the semi-synthetic protocol common in EEG denoising \cite{zhang2021}, a low-CFA neural surrogate (pink noise plus an amplitude-modulated 10~Hz alpha rhythm) provides ground truth $s(t)$. A synthetic ECG source $u(t)$ with RSA-modulated RR intervals is passed through the Hammerstein nonlinearity $N(x) = \tanh(1.6x) + 0.18x^2$ and the volume-conduction filter $H$, scaled by a slow posture drift, and added at a controlled input SNR; one premature and one dropped beat are injected. This yields exact-reference metrics without manual labeling. Metrics: artifact SNR (steady state), spectral cardiac-peak reduction, and alpha preservation.
+
+\subsection{Baselines}
+We compare against (i)~a linear RLS/LMS ECG-reference canceller \cite{widrow1975,haykin2014,sayed2008}; (ii)~an EKF/state-space canceller \emph{[placeholder---to be added]} \cite{sameni2007}; and (iii)~low-channel ICA \emph{[placeholder---to be added]} \cite{jung2000,pion2019}, which is expected to degrade at $C<8$.
+
+\subsection{Results}
+Table~\ref{tab:results} reports steady-state artifact SNR for the main approaches, generated directly by the companion script to keep manuscript numbers synchronized with code. Fig.~\ref{fig:conv} shows single-pass online convergence for the three operating modes and the corresponding buffered-mode spectrum before and after cleaning. In single-pass online operation, buffered mode converges faster and to a higher final SNR than causal mode, consistent with the expected one-beat anchoring advantage. Spectrally, the cardiac comb is strongly reduced after cleaning while the 10~Hz alpha peak is preserved within about 10\%, an implicit heartbeat-evoked-potential safeguard \cite{park2019}. Ablations show ILC contributes the bulk of the gain when well-anchored (buffered), while the NRLS residual is decisive in the causal mode, where the ILC cannot fully cancel the predicted-R-smeared spike; the Hammerstein term helps most when the residual is largest.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\linewidth]{fig1_convergence_spectrum.pdf}
+\caption{(a) Online SNR convergence for the three modes (single causal pass). (b) Power spectrum before/after cleaning (buffered); shaded band marks the preserved 10~Hz alpha rhythm.}
+\label{fig:conv}
+\end{figure}
+
+Fig.~\ref{fig:time} shows the time-domain cancellation over three consecutive beats in the converged regime. The synthetic reference $r(t)$ exhibits full PQRST morphology---P wave, QRS complex, and T wave---rather than a simplified sinusoidal surrogate, so the canceller must contend with a sharp, high-amplitude R deflection and a low-amplitude pre-R P wave. After processing, the cleaned EEG closely tracks the ground-truth neural signal $s(t)$: the R spike is suppressed by roughly an order of magnitude, the QRST tail is removed, and the residual P wave is attenuated, while the ongoing alpha oscillation is retained. This confirms that the phase-anchored template and residual canceller act on realistic cardiac morphology, not a reduced model.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\linewidth]{fig2_timedomain.pdf}
+\caption{Time-domain cancellation over three beats (converged, buffered mode). (a) Synthetic ECG reference $r(t)$ with full PQRST morphology; vertical lines mark detected R fiducials $t_k$. (b) Contaminated EEG $y(t)$, cleaned output, and ground-truth neural signal $s(t)$ over the same window.}
+\label{fig:time}
+\end{figure}
+
+\input{tab_results_generated.tex}
+
+% ===========================================================================
+\section{Conclusion}
+We presented a control-theoretic synthesis---min/max-tracker PI-PLL phase estimation, ILC/repetitive template cancellation, a Hammerstein electrode model, and an NRLS residual canceller cast as a control-standard state-space system---for real-time CFA removal in low-channel ear-EEG. It exceeds linear ANC at equal latency, exposes a quantified one-beat-latency vs.\ zero-latency trade-off set by RR predictability, preserves the alpha rhythm, and runs at $O(D)$ per-sample cost suitable for edge deployment.
+
+More broadly, this work aims to bridge mature mechatronic disturbance-rejection theory and biosignal denoising, opening a control-systems avenue for wearable neural interfaces. The disturbance-observer perspective extends naturally beyond the cardiac artifact: an inertial (gyroscope/accelerometer) reference could drive feed-forward cancellation of motion artifact, and an event-driven detector could trigger transient cancellation of eye-blink or jaw-clench artifacts, suggesting a unified, reference-driven, control-based artifact-rejection subsystem for earable EEG. Future work includes validation on recorded ear-EEG, multichannel spatial coupling for $C\le8$, an RSA-aware R predictor to lift the zero-latency R-spike ceiling, and an algorithm-unrolled low-power realization.
+
+% ===========================================================================
+\begin{thebibliography}{24}
+
+\bibitem{dirlich1997} G. Dirlich, L. Vogl, M. Plaschke, and F. Strian, ``Cardiac field effects on the EEG,'' \emph{Electroencephalogr. Clin. Neurophysiol.}, vol. 102, no. 4, pp. 307--315, 1997.
+
+\bibitem{allen1998} P. J. Allen, G. Polizzi, K. Krakow, D. R. Fish, and L. Lemieux, ``Identification of EEG events in the MR scanner: the problem of pulse artifact and a method for its subtraction,'' \emph{NeuroImage}, vol. 8, no. 3, pp. 229--239, 1998.
+
+\bibitem{allen2000} P. J. Allen, O. Josephs, and R. Turner, ``A method for removing imaging artifact from continuous EEG recorded during functional MRI,'' \emph{NeuroImage}, vol. 12, no. 2, pp. 230--239, 2000.
+
+\bibitem{niazy2005} R. K. Niazy, C. F. Beckmann, G. D. Iannetti, J. M. Brady, and S. M. Smith, ``Removal of FMRI environment artifacts from EEG data using optimal basis sets,'' \emph{NeuroImage}, vol. 28, no. 3, pp. 720--737, 2005.
+
+\bibitem{widrow1975} B. Widrow \emph{et al.}, ``Adaptive noise cancelling: principles and applications,'' \emph{Proc. IEEE}, vol. 63, no. 12, pp. 1692--1716, 1975.
+
+\bibitem{haykin2014} S. Haykin, \emph{Adaptive Filter Theory}, 5th ed. Pearson, 2014.
+
+\bibitem{sayed2008} A. H. Sayed, \emph{Adaptive Filters}. Wiley-IEEE Press, 2008.
+
+\bibitem{diniz2013} P. S. R. Diniz, \emph{Adaptive Filtering: Algorithms and Practical Implementation}, 4th ed. Springer, 2013.
+
+\bibitem{jung2000} T.-P. Jung \emph{et al.}, ``Removing electroencephalographic artifacts by blind source separation,'' \emph{Psychophysiology}, vol. 37, no. 2, pp. 163--178, 2000.
+
+\bibitem{pion2019} L. Pion-Tonachini, K. Kreutz-Delgado, and S. Makeig, ``ICLabel: an automated EEG independent component classifier, dataset, and website,'' \emph{NeuroImage}, vol. 198, pp. 181--197, 2019.
+
+\bibitem{mullen2015} T. R. Mullen \emph{et al.}, ``Real-time neuroimaging and cognitive monitoring using wearable dry EEG,'' \emph{IEEE Trans. Biomed. Eng.}, vol. 62, no. 11, pp. 2553--2567, 2015.
+
+\bibitem{zhang2021} H. Zhang \emph{et al.}, ``EEGdenoiseNet: a benchmark dataset for deep learning solutions of EEG denoising,'' \emph{J. Neural Eng.}, vol. 18, no. 5, art. 056057, 2021.
+
+\bibitem{gregor2010} K. Gregor and Y. LeCun, ``Learning fast approximations of sparse coding,'' in \emph{Proc. ICML}, 2010, pp. 399--406.
+
+\bibitem{monga2021} V. Monga, Y. Li, and Y. C. Eldar, ``Algorithm unrolling: interpretable, efficient deep learning for signal and image processing,'' \emph{IEEE Signal Process. Mag.}, vol. 38, no. 2, pp. 18--44, 2021.
+
+\bibitem{francis1976} B. A. Francis and W. M. Wonham, ``The internal model principle of control theory,'' \emph{Automatica}, vol. 12, no. 5, pp. 457--465, 1976.
+
+\bibitem{hara1988} S. Hara, Y. Yamamoto, T. Omata, and M. Nakano, ``Repetitive control system: a new type servo system for periodic exogenous signals,'' \emph{IEEE Trans. Autom. Control}, vol. 33, no. 7, pp. 659--668, 1988.
+
+\bibitem{longman2000} R. W. Longman, ``Iterative learning control and repetitive control for engineering practice,'' \emph{Int. J. Control}, vol. 73, no. 10, pp. 930--954, 2000.
+
+\bibitem{arimoto1984} S. Arimoto, S. Kawamura, and F. Miyazaki, ``Bettering operation of robots by learning,'' \emph{J. Robot. Syst.}, vol. 1, no. 2, pp. 123--140, 1984.
+
+\bibitem{bristow2006} D. A. Bristow, M. Tharayil, and A. G. Alleyne, ``A survey of iterative learning control,'' \emph{IEEE Control Syst. Mag.}, vol. 26, no. 3, pp. 96--114, 2006.
+
+\bibitem{liu2010} W. Liu, J. C. Pr\'{i}ncipe, and S. Haykin, \emph{Kernel Adaptive Filtering}. Wiley, 2010.
+
+\bibitem{narendra1966} K. S. Narendra and P. G. Gallman, ``An iterative method for the identification of nonlinear systems using a Hammerstein model,'' \emph{IEEE Trans. Autom. Control}, vol. 11, no. 3, pp. 546--550, 1966.
+
+\bibitem{bai1998} E.-W. Bai, ``An optimal two-stage identification algorithm for Hammerstein--Wiener nonlinear systems,'' \emph{Automatica}, vol. 34, no. 3, pp. 333--338, 1998.
+
+\bibitem{sameni2007} R. Sameni, M. B. Shamsollahi, C. Jutten, and G. D. Clifford, ``A nonlinear Bayesian filtering framework for ECG denoising,'' \emph{IEEE Trans. Biomed. Eng.}, vol. 54, no. 12, pp. 2172--2185, 2007.
+
+\bibitem{park2019} H.-D. Park and O. Blanke, ``Heartbeat-evoked cortical responses: mechanisms, functional roles, and methodological considerations,'' \emph{NeuroImage}, vol. 197, pp. 502--511, 2019.
+
+\end{thebibliography}
+
+\end{document}

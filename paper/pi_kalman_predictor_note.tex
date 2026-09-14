@@ -1,0 +1,196 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=black,urlcolor=blue]{hyperref}
+\usepackage{titlesec}
+\usepackage{parskip}
+
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.6em}{}
+
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\RRhat}{\widehat{T}}
+\newcommand{\that}{\hat{t}}
+
+\title{\vspace{-2em}\bfseries Strict-Causal R-Peak Prediction:\\
+a PI phase tracker with a scalar-Kalman gain}
+\author{Implementation \& analysis note (CFA ear-EEG)}
+\date{\today}
+
+\begin{document}
+\maketitle
+\vspace{-1.5em}
+
+\noindent
+\textbf{Scope.} Strict-causal cancellation subtracts the template at a \emph{predicted} cardiac
+phase, because the current beat's R-peak has not arrived. This note specifies the predictor:
+a PI phase-locked tracker whose integral (rate) gain is the steady-state Kalman gain for a scalar
+random-walk model of the RR interval. The same model yields the one-step prediction variance, which
+sets the strict-causal R-spike suppression ceiling and an adaptive fall-back-to-buffered gate.
+Assumes R-peak \emph{detection} is already reliable (locking succeeds); this is purely the
+\emph{prediction} problem.
+
+\section{What must be predicted}
+
+Between beats we advance a phase estimate and look up the template at that phase. At sample $n$,
+after the last detected R-peak $\that_k$, the strict-causal phase is
+\begin{equation}
+\phi_{\mathrm{pred}}(n) = \frac{n - \that_k}{\RRhat_k\, f_s},
+\qquad
+\hat{s}(n) = y(n) - \hat{d}_r\bigl(\phi_{\mathrm{pred}}(n)\bigr),
+\label{eq:pred}
+\end{equation}
+using only the current RR estimate $\RRhat_k$ (samples), no future fiducial $\Rightarrow$ zero added
+latency. Two quantities drive the error: the \emph{onset} (where the next R falls, sets QRS-spike
+alignment) and the \emph{rate} $1/\RRhat_k$ (sets phase advance, dominates the T-wave tail under HRV).
+Both reduce to one estimation problem: predict the next RR interval.
+
+\section{Scalar RR state-space model}
+
+Model the beat interval $T_k$ as a slowly-drifting scalar state with detection-jitter measurement
+(Assumption~3):
+\begin{align}
+T_k &= T_{k-1} + w_k, & w_k &\sim (0,\, q) && \text{(process: RR drift / RSA)}, \label{eq:proc}\\
+z_k &= T_k + v_k,      & v_k &\sim (0,\, r) && \text{(measurement: } z_k=\that_k-\that_{k-1}\text{)}. \label{eq:meas}
+\end{align}
+$q$ is the beat-to-beat RR increment variance (how fast the rate wanders), $r$ the R-peak detection
+timing-jitter variance. Both are \emph{measurable from data}: $q$ from the variance of successive
+RR differences, $r$ from fiducial jitter against a clean reference.
+
+\section{Kalman filter and the steady-state gain}
+
+The scalar Kalman recursion for \eqref{eq:proc}--\eqref{eq:meas}:
+\begin{align}
+\text{predict:}\quad & \RRhat_k^- = \RRhat_{k-1}, & P_k^- &= P_{k-1} + q, \\
+\text{gain:}\quad & K_k = \frac{P_k^-}{P_k^- + r}, \\
+\text{update:}\quad & \RRhat_k = \RRhat_k^- + K_k\,(z_k - \RRhat_k^-), & P_k &= (1-K_k)\,P_k^-.
+\end{align}
+At steady state $P_k^-\to P^-$ solves the scalar Riccati $P^- = (1-K)P^- + q$ with $K=P^-/(P^-+r)$,
+i.e.\ $P^{-2} - qP^- - qr = 0$, giving the closed form
+\begin{equation}
+\boxed{\;P^- = \frac{q + \sqrt{q^2 + 4qr}}{2},
+\qquad
+K_{\mathrm{ss}} = \frac{P^-}{P^- + r}\;}
+\label{eq:kss}
+\end{equation}
+$K_{\mathrm{ss}}$ depends only on the ratio $\gamma = q/r$: with $\beta \equiv P^-/r =
+\tfrac12(\gamma + \sqrt{\gamma^2+4\gamma})$, $K_{\mathrm{ss}} = \beta/(\beta+1)$. Large $\gamma$
+(rate wanders fast relative to jitter) $\Rightarrow$ $K_{\mathrm{ss}}\to 1$ (trust each measurement);
+small $\gamma$ $\Rightarrow$ heavy smoothing.
+
+\section{PI phase tracker, and why its gain is $K_{\mathrm{ss}}$}
+
+The deployed tracker is a PI phase-locked loop. Between beats the phase accumulates at the estimated
+rate; at each fiducial a proportional term corrects onset phase and an integral term updates the rate:
+\begin{align}
+\text{advance:}\quad & p(n\!+\!1) = \bigl[p(n) + f_r(n)\bigr]\bmod 1, \quad f_r(n) = \tfrac{1}{\RRhat_k f_s}, \\
+\text{onset (P):}\quad & p \leftarrow p - K_p\, e_p, \label{eq:P}\\
+\text{rate (I):}\quad & \RRhat \leftarrow \RRhat + K_i\,(z_k - \RRhat). \label{eq:I}
+\end{align}
+The integral update \eqref{eq:I} is \emph{identical} to the Kalman state update with
+\begin{equation}
+\boxed{\,K_i = K_{\mathrm{ss}}\,}
+\end{equation}
+So the PI form is not an ad-hoc alternative to a Kalman filter --- it \emph{is} the steady-state
+scalar Kalman filter, with the integral gain \emph{derived} from the measured RR statistics
+\eqref{eq:kss} rather than hand-tuned. The proportional gain $K_p$ governs onset (fiducial-phase)
+correction, separate from rate: $K_p\!\to\!1$ snaps phase to the measured fiducial, $K_p\!<\!1$
+smooths onset jitter. Set the loop bandwidth above the RSA band ($\sim$0.2--0.4~Hz) and below
+per-beat detection noise.
+
+\paragraph{Design recipe.} (1) estimate $q,r$ from data; (2) $\gamma=q/r \Rightarrow K_i=K_{\mathrm{ss}}$
+via \eqref{eq:kss}; (3) pick $K_p$ for onset smoothing (start $K_p\!\approx\!1$, reduce if fiducial
+jitter dominates). No loop to hand-tune; the one number $\gamma$ sets the rate gain.
+
+\section{One-step prediction variance $\to$ R-spike suppression cap}
+
+Strict-causal mode predicts the next R-onset as $\that_{k+1}^{\mathrm{pred}} = \that_k + \RRhat_k$.
+The prediction error is $\delta\tau = \RRhat_k - T_{k+1} = (\RRhat_k - T_k) - w_{k+1}$, whose variance
+is exactly the steady-state \emph{prior}:
+\begin{equation}
+\sigma_\tau^2 \;=\; \Var[\delta\tau] \;=\; P^+ + q \;=\; P^-,
+\qquad
+\sigma_\tau = \sqrt{P^-}.
+\label{eq:sigtau}
+\end{equation}
+The Kalman model therefore hands you the prediction jitter $\sigma_\tau$ directly. Because the R-spike
+is the sharpest template feature (width $w_R$), a lookup misaligned by $\sigma_\tau$ attenuates its
+peak by approximately a Gaussian-blur factor,
+\begin{equation}
+\frac{\hat{d}_r^{\,\mathrm{causal}}(0)}{\hat{d}_r^{\,\mathrm{buffered}}(0)}
+\;\approx\; \exp\!\Bigl(-\tfrac12 (\sigma_\tau/w_R)^2\Bigr),
+\label{eq:cap}
+\end{equation}
+while the broad QRS--T tail (slow on the scale of $\sigma_\tau$) is largely preserved. This closes the
+loop: $\{q,r\}\Rightarrow\sigma_\tau\Rightarrow$ predicted strict-causal R-spike ceiling, computable
+\emph{before} deployment. (Placeholder: with $q=\texttt{[..]}$, $r=\texttt{[..]}$ one gets
+$\sigma_\tau=\texttt{[..]}$ ms and a predicted R-spike retention of $\texttt{[..]}\%$, to be checked
+against \S7.)
+
+\section{Adaptive gating (arrhythmia-aware, in estimator form)}
+
+The running $P_k^-$ inflates on irregular beats (large innovation $z_k-\RRhat_k^-$ raises the model's
+uncertainty), so per-beat $\sigma_{\tau,k}=\sqrt{P_k^-}$ is an online confidence. Gate on it:
+\begin{equation}
+\text{if } \sigma_{\tau,k} > \sigma_{\max}:\ \text{fall back to buffered (one-beat delay) or freeze update.}
+\end{equation}
+This is the arrhythmia supervisor expressed through the estimator: strict-causal when prediction is
+confident, buffered when it is not. Choose $\sigma_{\max}$ as a fraction of $w_R$ (e.g.\ the
+$\sigma_\tau$ at which \eqref{eq:cap} drops below an acceptable R-spike retention).
+
+\section{Optional: RSA structure (only if the residual warrants it)}
+
+The random-walk \eqref{eq:proc} is memoryless. If the RR-prediction residual is \emph{white}, it is
+provably optimal and nothing fancier is justified --- check this first. If the residual is structured
+at the respiratory frequency, replace \eqref{eq:proc} with an AR(1)-toward-mean or a two-state
+(RR + respiratory-phase) model; the Kalman machinery is unchanged, only the state transition grows.
+Do not add the respiratory state on intuition --- add it only if the whiteness test on the residual
+fails.
+
+\section{Validation protocol (the reviewer's jitter sweep doubles as predictor test)}
+
+Inject controlled R-peak prediction jitter $\sigma_\tau \in \{0,2,5,10,20,40\}$~ms and plot R-spike
+(and cardiac-band) suppression vs $\sigma_\tau$ for three anchors: (i) oracle (true next R, upper
+bound), (ii) PI/Kalman-predicted, (iii) buffered (one-beat delay). This simultaneously validates the
+predictor against the oracle ceiling, confirms the cap formula \eqref{eq:cap} on data, and locates
+the crossover where buffered beats strict-causal --- i.e.\ where the gate \S6 should switch.
+
+\section*{Algorithm summary (per sample $n$; beat index $k$)}
+\hrule\vspace{4pt}
+\begin{small}
+\begin{verbatim}
+# once, offline: estimate q, r from data; K_i = K_ss(q, r) via Eq. (kss); pick K_p, sigma_max
+state: p (phase), RR_hat (samples), P (RR prior var), last_fid t_hat_k
+
+on each sample n:
+    p_pred = (n - t_hat_k) / (RR_hat)                 # Eq. (pred), fractional phase
+    idx    = round(p_pred * RR_hat)                    # template offset from R
+    s_hat[n] = y[n] - d_hat[idx]                       # strict-causal cancellation
+    p += 1.0 / RR_hat                                  # advance phase
+
+on detected fiducial at sample n (beat k):
+    z       = n - t_hat_k                              # measured interval
+    innov   = z - RR_hat
+    P       = P + q                                    # predict
+    K       = P / (P + r)                              # (== K_i at steady state)
+    RR_hat  = RR_hat + K * innov                       # rate update  Eq. (I)
+    P       = (1 - K) * P
+    p       = p - K_p * wrap(p)                        # onset correction Eq. (P)
+    sigma_tau = sqrt(P + q)                            # one-step pred jitter Eq. (sigtau)
+    if sigma_tau > sigma_max:  mode = BUFFERED         # gate  Sec. 6
+    else:                      mode = STRICT_CAUSAL
+    t_hat_k = n
+\end{verbatim}
+\end{small}
+\hrule
+\vspace{4pt}
+\noindent
+Constant work per sample ($O(1)$), one template of length $n_t$ in memory ($O(n_t)$). The only tuned
+quantities are $\{q,r\}$ (measured) and $\{K_p,\sigma_{\max}\}$ (onset smoothing / gate); the rate
+gain follows from \eqref{eq:kss}.
+
+\end{document}
